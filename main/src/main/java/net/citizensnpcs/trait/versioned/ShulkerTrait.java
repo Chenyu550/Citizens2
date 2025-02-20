@@ -71,7 +71,7 @@ public class ShulkerTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "shulker (--peek [peek] --color [color])",
-            desc = "",
+            desc = "Sets shulker modifiers.",
             modifiers = { "shulker" },
             min = 1,
             max = 1,
@@ -95,7 +95,8 @@ public class ShulkerTrait extends Trait {
             Messaging.sendTr(sender, Messages.SHULKER_COLOR_SET, npc.getName(), Util.prettyEnum(color));
             hasArg = true;
         }
-        if (!hasArg)
+        if (!hasArg) {
             throw new CommandUsageException();
+        }
     }
 }

@@ -60,7 +60,7 @@ public class LlamaTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "llama (--color color) (--strength strength)",
-            desc = "",
+            desc = "Sets llama modifiers",
             modifiers = { "llama" },
             min = 1,
             max = 1,
@@ -81,10 +81,12 @@ public class LlamaTrait extends Trait {
             trait.setColor(color);
             output += Messaging.tr(Messages.LLAMA_COLOR_SET, Util.prettyEnum(color));
         }
+
         if (strength != null) {
             trait.setStrength(Math.max(1, Math.min(5, strength)));
             output += Messaging.tr(Messages.LLAMA_STRENGTH_SET, trait.getStrength());
         }
+
         if (args.hasFlag('c')) {
             npc.getOrAddTrait(HorseModifiers.class).setCarryingChest(true);
             output += Messaging.tr(Messages.HORSE_CHEST_SET) + " ";
@@ -92,6 +94,7 @@ public class LlamaTrait extends Trait {
             npc.getOrAddTrait(HorseModifiers.class).setCarryingChest(false);
             output += Messaging.tr(Messages.HORSE_CHEST_UNSET) + " ";
         }
+
         if (!output.isEmpty()) {
             Messaging.send(sender, output);
         }

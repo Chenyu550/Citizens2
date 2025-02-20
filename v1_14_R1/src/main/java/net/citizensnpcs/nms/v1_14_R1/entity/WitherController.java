@@ -19,7 +19,6 @@ import net.minecraft.server.v1_14_R1.DamageSource;
 import net.minecraft.server.v1_14_R1.Entity;
 import net.minecraft.server.v1_14_R1.EntityBoat;
 import net.minecraft.server.v1_14_R1.EntityMinecartAbstract;
-import net.minecraft.server.v1_14_R1.EntityPlayer;
 import net.minecraft.server.v1_14_R1.EntityTypes;
 import net.minecraft.server.v1_14_R1.EntityWither;
 import net.minecraft.server.v1_14_R1.EnumPistonReaction;
@@ -59,19 +58,15 @@ public class WitherController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public boolean b(Tag<FluidType> tag) {
-            if (npc == null)
+            if (npc == null) {
                 return super.b(tag);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.b(tag);
             if (!npc.isPushableByFluids()) {
@@ -97,14 +92,8 @@ public class WitherController extends MobEntityController {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.collide(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
-        }
-
-        @Override
-        public float cX() {
-            return NMS.getJumpPower(npc, super.cX());
         }
 
         @Override
@@ -180,8 +169,9 @@ public class WitherController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
     }

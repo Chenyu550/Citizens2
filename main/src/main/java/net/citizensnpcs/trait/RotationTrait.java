@@ -6,18 +6,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -37,7 +33,7 @@ public class RotationTrait extends Trait {
     @Persist(reify = true)
     private final RotationParams globalParameters = new RotationParams();
     private final RotationSession globalSession = new RotationSession(globalParameters);
-    private List<PacketRotationSession> packetSessions = Lists.newCopyOnWriteArrayList();
+    private final List<PacketRotationSession> packetSessions = Lists.newArrayList();
     private final Map<UUID, PacketRotationSession> packetSessionsByUUID = Maps.newConcurrentMap();
 
     public RotationTrait() {
@@ -83,10 +79,10 @@ public class RotationTrait extends Trait {
         PacketRotationSession lrs = packetSessionsByUUID.get(player.getUniqueId());
         if (lrs != null && lrs.triple != null)
             return lrs;
-
         for (PacketRotationSession session : packetSessions) {
-            if (session.accepts(player) && session.triple != null)
+            if (session.accepts(player) && session.triple != null) {
                 return session;
+            }
         }
         return null;
     }
@@ -95,46 +91,37 @@ public class RotationTrait extends Trait {
         return globalSession;
     }
 
-    public void resetPlayerToPhysicalSession(UUID uuid) {
-        PacketRotationSession prs = packetSessionsByUUID.remove(uuid);
-        if (prs == null || !npc.isSpawned())
-            return;
-        Player player = Bukkit.getPlayer(uuid);
-        if (player == null)
-            return;
-        NMS.sendPositionUpdate(npc.getEntity(), ImmutableList.of(player), false);
-    }
-
     @Override
     public void run() {
         if (!npc.isSpawned())
             return;
-
         if (npc.data().get(NPC.Metadata.RESET_PITCH_ON_TICK, false)) {
             NMS.setPitch(npc.getEntity(), 0);
         }
+
         Set<PacketRotationSession> ran = Sets.newHashSet();
         for (Iterator<PacketRotationSession> itr = Iterables.concat(packetSessions, packetSessionsByUUID.values())
                 .iterator(); itr.hasNext();) {
             PacketRotationSession session = itr.next();
             if (ran.contains(session))
                 continue;
-
             ran.add(session);
             session.run(npc.getEntity());
+            if (!session.isActive()) {
+                itr.remove();
+            }
         }
-        packetSessions = Lists.newCopyOnWriteArrayList(packetSessions.stream().filter(s -> s.isActive())
-                .collect(Collectors.toCollection(CopyOnWriteArrayList::new)));
-        packetSessionsByUUID.values().removeIf(s -> !s.isActive());
-        if (npc.getNavigator().isNavigating())
+
+        if (npc.getNavigator().isNavigating()) {
             // npc.yHeadRot = rotateIfNecessary(npc.yHeadRot, npc.yBodyRot, 75);
             return;
+        }
 
         globalSession.run(new EntityRotation(npc.getEntity()));
     }
 
     private static class EntityRotation extends RotationTriple {
-        protected Entity entity;
+        protected final Entity entity;
 
         public EntityRotation(Entity entity) {
             super(NMS.getYaw(entity), NMS.getHeadYaw(entity), entity.getLocation().getPitch());
@@ -146,6 +133,9 @@ public class RotationTrait extends Trait {
             NMS.setBodyYaw(entity, bodyYaw);
             NMS.setHeadYaw(entity, headYaw);
             NMS.setPitch(entity, pitch);
+            if (entity instanceof Player) {
+                NMS.sendPositionUpdate(entity, true, bodyYaw, pitch, headYaw);
+            }
         }
     }
 
@@ -163,7 +153,7 @@ public class RotationTrait extends Trait {
         }
 
         public void end() {
-            ended = true;
+            this.ended = true;
         }
 
         public float getBodyYaw() {
@@ -190,7 +180,6 @@ public class RotationTrait extends Trait {
         public void onPacketOverwritten() {
             if (triple == null)
                 return;
-
             triple.record();
         }
 
@@ -217,7 +206,7 @@ public class RotationTrait extends Trait {
         @Override
         public void apply() {
             if (Math.abs(lastBodyYaw - bodyYaw) + Math.abs(lastHeadYaw - headYaw) + Math.abs(pitch - lastPitch) > 1) {
-                NMS.sendPositionUpdateNearby(entity, false, bodyYaw, pitch, headYaw);
+                NMS.sendPositionUpdate(entity, true, bodyYaw, pitch, headYaw);
             }
         }
 
@@ -235,7 +224,7 @@ public class RotationTrait extends Trait {
         private boolean linkedBody;
         private float maxPitchPerTick = 10;
         private float maxYawPerTick = 40;
-        private volatile boolean persist = false;
+        private boolean persist = false;
         private float[] pitchRange = { -180, 180 };
         private List<UUID> uuidFilter;
         private float[] yawRange = { -180, 180 };
@@ -269,7 +258,7 @@ public class RotationTrait extends Trait {
         }
 
         public RotationParams linkedBody(boolean linked) {
-            linkedBody = linked;
+            this.linkedBody = linked;
             return this;
         }
 
@@ -301,12 +290,12 @@ public class RotationTrait extends Trait {
         }
 
         public RotationParams maxPitchPerTick(float val) {
-            maxPitchPerTick = val;
+            this.maxPitchPerTick = val;
             return this;
         }
 
         public RotationParams maxYawPerTick(float val) {
-            maxYawPerTick = val;
+            this.maxYawPerTick = val;
             return this;
         }
 
@@ -316,7 +305,7 @@ public class RotationTrait extends Trait {
         }
 
         public RotationParams pitchRange(float[] val) {
-            pitchRange = val;
+            this.pitchRange = val;
             return this;
         }
 
@@ -347,24 +336,29 @@ public class RotationTrait extends Trait {
             if (headOnly) {
                 key.setBoolean("headOnly", headOnly);
             }
+
             if (immediate) {
                 key.setBoolean("immediate", immediate);
             }
+
             if (maxPitchPerTick != 10) {
                 key.setDouble("maxPitchPerTick", maxPitchPerTick);
             } else {
                 key.removeKey("maxPitchPerTick");
             }
+
             if (maxYawPerTick != 40) {
                 key.setDouble("maxYawPerTick", maxYawPerTick);
             } else {
                 key.removeKey("maxYawPerTick");
             }
+
             if (pitchRange[0] != -180 || pitchRange[1] != 180) {
                 key.setString("pitchRange", pitchRange[0] + "," + pitchRange[1]);
             } else {
                 key.removeKey("pitchRange");
             }
+
             if (yawRange[0] != -180 || yawRange[1] != 180) {
                 key.setString("yawRange", yawRange[0] + "," + yawRange[1]);
             } else {
@@ -373,7 +367,7 @@ public class RotationTrait extends Trait {
         }
 
         public RotationParams uuidFilter(List<UUID> uuids) {
-            uuidFilter = uuids;
+            this.uuidFilter = uuids;
             return this;
         }
 
@@ -382,14 +376,14 @@ public class RotationTrait extends Trait {
         }
 
         public RotationParams yawRange(float[] val) {
-            yawRange = val;
+            this.yawRange = val;
             return this;
         }
     }
 
     public class RotationSession {
         private final RotationParams params;
-        private volatile int t = -1;
+        private int t = -1;
         private Supplier<Float> targetPitch = () -> 0F;
         private Supplier<Float> targetYaw = targetPitch;
 
@@ -488,18 +482,21 @@ public class RotationTrait extends Trait {
                     rot.bodyYaw = Math.abs(body - lo) > Math.abs(body - hi) ? hi : lo;
                 }
             }
+
             rot.pitch = params.immediate ? getTargetPitch() : params.rotatePitchTowards(t, rot.pitch, getTargetPitch());
             t++;
 
             if (params.linkedBody) {
                 rot.bodyYaw = rot.headYaw;
             }
+
             if (Math.abs(rot.pitch - getTargetPitch()) + Math.abs(rot.headYaw - getTargetYaw()) < 0.1) {
                 t = -1;
                 if (!params.headOnly) {
                     rot.bodyYaw = rot.headYaw;
                 }
             }
+
             rot.apply();
         }
     }

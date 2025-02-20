@@ -13,14 +13,10 @@ import java.util.stream.Stream;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Maps;
-import com.mojang.serialization.Codec;
 import com.mojang.serialization.Lifecycle;
 
 import net.citizensnpcs.util.NMS;
 import net.minecraft.core.DefaultedRegistry;
-import net.minecraft.core.Holder;
-import net.minecraft.core.Holder.Reference;
-import net.minecraft.core.IdMap;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
@@ -157,16 +153,6 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
     }
 
     @Override
-    public IdMap<Holder<EntityType<?>>> asHolderIdMap() {
-        return wrapped.asHolderIdMap();
-    }
-
-    @Override
-    public void bindTags(Map var0) {
-        wrapped.bindTags(var0);
-    }
-
-    @Override
     public Object byId(int var0) {
         return this.wrapped.byId(var0);
     }
@@ -177,11 +163,6 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
     }
 
     @Override
-    public Codec byNameCodec() {
-        return wrapped.byNameCodec();
-    }
-
-    @Override
     public boolean containsKey(ResourceKey var0) {
         return this.wrapped.containsKey(var0);
     }
@@ -189,16 +170,6 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
     @Override
     public boolean containsKey(ResourceLocation var0) {
         return this.wrapped.containsKey(var0);
-    }
-
-    @Override
-    public Reference createIntrusiveHolder(Object type) {
-        return this.wrapped.createIntrusiveHolder((EntityType<?>) type);
-    }
-
-    @Override
-    public Lifecycle elementsLifecycle() {
-        return wrapped.elementsLifecycle();
     }
 
     @Override
@@ -219,11 +190,6 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
     }
 
     @Override
-    public Registry<EntityType<?>> freeze() {
-        return wrapped.freeze();
-    }
-
-    @Override
     public DefaultedRegistry<EntityType<?>> get() {
         return wrapped;
     }
@@ -235,8 +201,9 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
 
     @Override
     public EntityType get(ResourceLocation key) {
-        if (entities.containsKey(key))
+        if (entities.containsKey(key)) {
             return entities.get(key);
+        }
         return wrapped.get(key);
     }
 
@@ -252,15 +219,17 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
 
     @Override
     public int getId(Object key) {
-        if (entityIds.containsKey(key))
+        if (entityIds.containsKey(key)) {
             return entityIds.get(key);
+        }
         return wrapped.getId((EntityType) key);
     }
 
     @Override
     public ResourceLocation getKey(Object value) {
-        if (entityClasses.containsKey(value))
+        if (entityClasses.containsKey(value)) {
             return entityClasses.get(value);
+        }
         return wrapped.getKey((EntityType) value);
     }
 
@@ -271,8 +240,9 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
 
     @Override
     public Optional getOptional(ResourceLocation var0) {
-        if (entities.containsKey(var0))
+        if (entities.containsKey(var0)) {
             return Optional.of(entities.get(var0));
+        }
         return this.wrapped.getOptional(var0);
     }
 
@@ -307,33 +277,13 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
     }
 
     @Override
-    public boolean isKnownTagName(TagKey key) {
-        return wrapped.isKnownTagName(key);
-    }
-
-    @Override
     public Iterator<Object> iterator() {
         return (Iterator) wrapped.iterator();
     }
 
     @Override
-    public ResourceKey<? extends Registry<EntityType<?>>> key() {
-        return wrapped.key();
-    }
-
-    @Override
     public Set<Object> keySet() {
         return (Set) wrapped.keySet();
-    }
-
-    @Override
-    public Lifecycle lifecycle() {
-        return wrapped.lifecycle();
-    }
-
-    @Override
-    public Lifecycle lifecycle(Object type) {
-        return wrapped.lifecycle((EntityType<?>) type);
     }
 
     public void put(int entityId, ResourceLocation key, EntityType entityClass) {
@@ -342,18 +292,8 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
     }
 
     @Override
-    public void resetTags() {
-        wrapped.resetTags();
-    }
-
-    @Override
     public int size() {
         return wrapped.size();
-    }
-
-    @Override
-    public Stream<EntityType<?>> stream() {
-        return wrapped.stream();
     }
 
     private static final MethodHandle IREGISTRY_CUSTOM_HOLDER_PROVDER = NMS.getFirstGetter(MappedRegistry.class,
@@ -375,32 +315,26 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
         minecraftClassMap.put(EntityType.BOAT, Boat.class);
         minecraftClassMap.put(EntityType.CAT, Cat.class);
         minecraftClassMap.put(EntityType.CAVE_SPIDER, CaveSpider.class);
-        minecraftClassMap.put(EntityType.CHEST_MINECART, MinecartChest.class);
         minecraftClassMap.put(EntityType.CHICKEN, Chicken.class);
         minecraftClassMap.put(EntityType.COD, Cod.class);
-        minecraftClassMap.put(EntityType.COMMAND_BLOCK_MINECART, MinecartCommandBlock.class);
         minecraftClassMap.put(EntityType.COW, Cow.class);
         minecraftClassMap.put(EntityType.CREEPER, Creeper.class);
         minecraftClassMap.put(EntityType.DOLPHIN, Dolphin.class);
         minecraftClassMap.put(EntityType.DONKEY, Donkey.class);
         minecraftClassMap.put(EntityType.DRAGON_FIREBALL, DragonFireball.class);
         minecraftClassMap.put(EntityType.DROWNED, Drowned.class);
-        minecraftClassMap.put(EntityType.EGG, ThrownEgg.class);
         minecraftClassMap.put(EntityType.ELDER_GUARDIAN, ElderGuardian.class);
         minecraftClassMap.put(EntityType.END_CRYSTAL, EndCrystal.class);
         minecraftClassMap.put(EntityType.ENDER_DRAGON, EnderDragon.class);
-        minecraftClassMap.put(EntityType.ENDER_PEARL, ThrownEnderpearl.class);
         minecraftClassMap.put(EntityType.ENDERMAN, EnderMan.class);
         minecraftClassMap.put(EntityType.ENDERMITE, Endermite.class);
         minecraftClassMap.put(EntityType.EVOKER, Evoker.class);
         minecraftClassMap.put(EntityType.EVOKER_FANGS, EvokerFangs.class);
-        minecraftClassMap.put(EntityType.EXPERIENCE_BOTTLE, ThrownExperienceBottle.class);
         minecraftClassMap.put(EntityType.EXPERIENCE_ORB, ExperienceOrb.class);
         minecraftClassMap.put(EntityType.EYE_OF_ENDER, EyeOfEnder.class);
         minecraftClassMap.put(EntityType.FALLING_BLOCK, FallingBlockEntity.class);
         minecraftClassMap.put(EntityType.FIREWORK_ROCKET, FireworkRocketEntity.class);
         minecraftClassMap.put(EntityType.FOX, Fox.class);
-        minecraftClassMap.put(EntityType.FURNACE_MINECART, MinecartFurnace.class);
         minecraftClassMap.put(EntityType.GHAST, Ghast.class);
         minecraftClassMap.put(EntityType.GIANT, Giant.class);
         minecraftClassMap.put(EntityType.GLOW_ITEM_FRAME, GlowItemFrame.class);
@@ -408,7 +342,6 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
         minecraftClassMap.put(EntityType.GOAT, Goat.class);
         minecraftClassMap.put(EntityType.GUARDIAN, Guardian.class);
         minecraftClassMap.put(EntityType.HOGLIN, Hoglin.class);
-        minecraftClassMap.put(EntityType.HOPPER_MINECART, MinecartHopper.class);
         minecraftClassMap.put(EntityType.HORSE, Horse.class);
         minecraftClassMap.put(EntityType.HUSK, Husk.class);
         minecraftClassMap.put(EntityType.ILLUSIONER, Illusioner.class);
@@ -423,8 +356,14 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
         minecraftClassMap.put(EntityType.MAGMA_CUBE, MagmaCube.class);
         minecraftClassMap.put(EntityType.MARKER, Marker.class);
         minecraftClassMap.put(EntityType.MINECART, Minecart.class);
-        minecraftClassMap.put(EntityType.MOOSHROOM, MushroomCow.class);
+        minecraftClassMap.put(EntityType.CHEST_MINECART, MinecartChest.class);
+        minecraftClassMap.put(EntityType.COMMAND_BLOCK_MINECART, MinecartCommandBlock.class);
+        minecraftClassMap.put(EntityType.FURNACE_MINECART, MinecartFurnace.class);
+        minecraftClassMap.put(EntityType.HOPPER_MINECART, MinecartHopper.class);
+        minecraftClassMap.put(EntityType.SPAWNER_MINECART, MinecartSpawner.class);
+        minecraftClassMap.put(EntityType.TNT_MINECART, MinecartTNT.class);
         minecraftClassMap.put(EntityType.MULE, Mule.class);
+        minecraftClassMap.put(EntityType.MOOSHROOM, MushroomCow.class);
         minecraftClassMap.put(EntityType.OCELOT, Ocelot.class);
         minecraftClassMap.put(EntityType.PAINTING, Painting.class);
         minecraftClassMap.put(EntityType.PANDA, Panda.class);
@@ -435,7 +374,7 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
         minecraftClassMap.put(EntityType.PIGLIN_BRUTE, PiglinBrute.class);
         minecraftClassMap.put(EntityType.PILLAGER, Pillager.class);
         minecraftClassMap.put(EntityType.POLAR_BEAR, PolarBear.class);
-        minecraftClassMap.put(EntityType.POTION, ThrownPotion.class);
+        minecraftClassMap.put(EntityType.TNT, PrimedTnt.class);
         minecraftClassMap.put(EntityType.PUFFERFISH, Pufferfish.class);
         minecraftClassMap.put(EntityType.RABBIT, Rabbit.class);
         minecraftClassMap.put(EntityType.RAVAGER, Ravager.class);
@@ -450,16 +389,17 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
         minecraftClassMap.put(EntityType.SMALL_FIREBALL, SmallFireball.class);
         minecraftClassMap.put(EntityType.SNOW_GOLEM, SnowGolem.class);
         minecraftClassMap.put(EntityType.SNOWBALL, Snowball.class);
-        minecraftClassMap.put(EntityType.SPAWNER_MINECART, MinecartSpawner.class);
         minecraftClassMap.put(EntityType.SPECTRAL_ARROW, SpectralArrow.class);
         minecraftClassMap.put(EntityType.SPIDER, Spider.class);
         minecraftClassMap.put(EntityType.SQUID, Squid.class);
         minecraftClassMap.put(EntityType.STRAY, Stray.class);
         minecraftClassMap.put(EntityType.STRIDER, Strider.class);
-        minecraftClassMap.put(EntityType.TNT, PrimedTnt.class);
-        minecraftClassMap.put(EntityType.TNT_MINECART, MinecartTNT.class);
-        minecraftClassMap.put(EntityType.TRADER_LLAMA, TraderLlama.class);
+        minecraftClassMap.put(EntityType.EGG, ThrownEgg.class);
+        minecraftClassMap.put(EntityType.ENDER_PEARL, ThrownEnderpearl.class);
+        minecraftClassMap.put(EntityType.EXPERIENCE_BOTTLE, ThrownExperienceBottle.class);
+        minecraftClassMap.put(EntityType.POTION, ThrownPotion.class);
         minecraftClassMap.put(EntityType.TRIDENT, ThrownTrident.class);
+        minecraftClassMap.put(EntityType.TRADER_LLAMA, TraderLlama.class);
         minecraftClassMap.put(EntityType.TROPICAL_FISH, TropicalFish.class);
         minecraftClassMap.put(EntityType.TURTLE, Turtle.class);
         minecraftClassMap.put(EntityType.VEX, Vex.class);

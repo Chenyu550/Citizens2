@@ -22,7 +22,6 @@ import net.minecraft.server.v1_12_R1.DamageSource;
 import net.minecraft.server.v1_12_R1.DragonControllerPhase;
 import net.minecraft.server.v1_12_R1.Entity;
 import net.minecraft.server.v1_12_R1.EntityEnderDragon;
-import net.minecraft.server.v1_12_R1.EntityPlayer;
 import net.minecraft.server.v1_12_R1.EnumPistonReaction;
 import net.minecraft.server.v1_12_R1.IEntitySelector;
 import net.minecraft.server.v1_12_R1.NBTTagCompound;
@@ -73,23 +72,13 @@ public class EnderDragonController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
         public int bg() {
             return NMS.getFallDistance(npc, super.bg());
-        }
-
-        @Override
-        public boolean bo() {
-            return npc == null ? super.bo() : npc.isPushableByFluids();
         }
 
         @Override
@@ -102,14 +91,8 @@ public class EnderDragonController extends MobEntityController {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.collide(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
-        }
-
-        @Override
-        public float ct() {
-            return NMS.getJumpPower(npc, super.ct());
         }
 
         @Override
@@ -196,9 +179,11 @@ public class EnderDragonController extends MobEntityController {
                         this.b[i][1] = this.locY;
                     }
                 }
+
                 if (++this.c == this.b.length) {
                     this.c = 0;
                 }
+
                 this.b[this.c][0] = this.yaw;
                 this.b[this.c][1] = this.locY;
 
@@ -211,6 +196,7 @@ public class EnderDragonController extends MobEntityController {
                     children[j].lastY = vec3.y;
                     children[j].lastZ = vec3.z;
                 }
+
                 if (getBukkitEntity().getPassenger() != null) {
                     yaw = getBukkitEntity().getPassenger().getLocation().getYaw() - 180;
                 }
@@ -219,10 +205,11 @@ public class EnderDragonController extends MobEntityController {
                     motY *= 0.98;
                     motZ *= 0.98;
                     if (getBukkitEntity().getPassenger() == null) {
-                        yaw = Util.getYawFromVelocity(getBukkitEntity(), motX, motZ);
+                        yaw = Util.getDragonYaw(getBukkitEntity(), motX, motZ);
                     }
                     setPosition(locX + motX, locY + motY, locZ + motZ);
                 }
+
                 if (npc.hasTrait(EnderDragonTrait.class) && npc.getOrAddTrait(EnderDragonTrait.class).isDestroyWalls()
                         && NMSImpl.ENDERDRAGON_CHECK_WALLS != null) {
                     for (int i = 0; i < 3; i++) {

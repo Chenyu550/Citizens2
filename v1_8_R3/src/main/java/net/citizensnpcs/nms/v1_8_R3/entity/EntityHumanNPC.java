@@ -1,6 +1,7 @@
 package net.citizensnpcs.nms.v1_8_R3.entity;
 
 import java.io.IOException;
+import java.net.Socket;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,12 +29,14 @@ import net.citizensnpcs.nms.v1_8_R3.util.NMSImpl;
 import net.citizensnpcs.nms.v1_8_R3.util.PlayerControllerJump;
 import net.citizensnpcs.nms.v1_8_R3.util.PlayerControllerMove;
 import net.citizensnpcs.nms.v1_8_R3.util.PlayerNavigation;
+import net.citizensnpcs.nms.v1_8_R3.util.PlayerlistTrackerEntry;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
 import net.citizensnpcs.npc.skin.SkinPacketTracker;
 import net.citizensnpcs.npc.skin.SkinnableEntity;
 import net.citizensnpcs.trait.Gravity;
 import net.citizensnpcs.trait.SkinTrait;
+import net.citizensnpcs.util.EmptySocket;
 import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_8_R3.AttributeInstance;
@@ -41,6 +44,7 @@ import net.minecraft.server.v1_8_R3.AxisAlignedBB;
 import net.minecraft.server.v1_8_R3.Block;
 import net.minecraft.server.v1_8_R3.BlockPosition;
 import net.minecraft.server.v1_8_R3.DamageSource;
+import net.minecraft.server.v1_8_R3.DataWatcher;
 import net.minecraft.server.v1_8_R3.Entity;
 import net.minecraft.server.v1_8_R3.EntityPlayer;
 import net.minecraft.server.v1_8_R3.EnumProtocolDirection;
@@ -57,21 +61,19 @@ import net.minecraft.server.v1_8_R3.WorldSettings;
 
 public class EntityHumanNPC extends EntityPlayer implements NPCHolder, SkinnableEntity {
     private PlayerControllerJump controllerJump;
-
     private PlayerControllerMove controllerMove;
-    private final Map<Integer, ItemStack> equipmentCache = new HashMap<>();
+    private final Map<Integer, ItemStack> equipmentCache = new HashMap<Integer, ItemStack>();
     private int jumpTicks = 0;
     private PlayerNavigation navigation;
     private final CitizensNPC npc;
     private final Location packetLocationCache = new Location(null, 0, 0, 0);
     private final SkinPacketTracker skinTracker;
+    private PlayerlistTrackerEntry trackerEntry;
 
     public EntityHumanNPC(MinecraftServer minecraftServer, WorldServer world, GameProfile gameProfile,
             PlayerInteractManager playerInteractManager, NPC npc) {
         super(minecraftServer, world, gameProfile, playerInteractManager);
         this.npc = (CitizensNPC) npc;
-        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.3);
-
         if (npc != null) {
             skinTracker = new SkinPacketTracker(this);
             playerInteractManager.setGameMode(WorldSettings.EnumGamemode.SURVIVAL);
@@ -89,8 +91,11 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
     }
 
     @Override
-    public boolean a(EntityPlayer player) {
-        return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
+    public boolean a(EntityPlayer entityplayer) {
+        if (npc != null && trackerEntry == null) {
+            return false;
+        }
+        return super.a(entityplayer);
     }
 
     @Override
@@ -98,21 +103,6 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
         return npc == null ? super.ae()
                 : npc.data().has(NPC.Metadata.COLLIDABLE) ? npc.data().<Boolean> get(NPC.Metadata.COLLIDABLE)
                         : !npc.isProtected();
-    }
-
-    @Override
-    public int aE() {
-        return NMS.getFallDistance(npc, super.aE());
-    }
-
-    @Override
-    public boolean aL() {
-        return npc == null ? super.aL() : npc.isPushableByFluids();
-    }
-
-    @Override
-    public float bE() {
-        return NMS.getJumpPower(npc, super.bE());
     }
 
     @Override
@@ -151,17 +141,16 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
     public void die(DamageSource damagesource) {
         // players that die are not normally removed from the world. when the
         // NPC dies, we are done with the instance and it should be removed.
-        if (dead)
+        if (dead) {
             return;
+        }
         super.die(damagesource);
-        Bukkit.getScheduler().runTaskLater(CitizensAPI.getPlugin(), () -> world.removeEntity(EntityHumanNPC.this), 15); // give
-                                                                                                                        // enough
-                                                                                                                        // time
-                                                                                                                        // for
-                                                                                                                        // death
-                                                                                                                        // and
-                                                                                                                        // smoke
-                                                                                                                        // animation
+        Bukkit.getScheduler().runTaskLater(CitizensAPI.getPlugin(), new Runnable() {
+            @Override
+            public void run() {
+                world.removeEntity(EntityHumanNPC.this);
+            }
+        }, 15); // give enough time for death and smoke animation
     }
 
     @Override
@@ -204,6 +193,14 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
         return controllerMove;
     }
 
+    @Override
+    public DataWatcher getDataWatcher() {
+        if (trackerEntry != null && trackerEntry.isUpdating()) {
+            trackerEntry.updateLastPlayer();
+        }
+        return super.getDataWatcher();
+    }
+
     public NavigationAbstract getNavigation() {
         return navigation;
     }
@@ -229,19 +226,24 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
 
     @Override
     public boolean inBlock() {
-        if (npc == null || noclip || isSleeping())
+        if (npc == null || noclip || isSleeping()) {
             return super.inBlock();
+        }
         return Util.inBlock(getBukkitEntity());
     }
 
     private void initialise(MinecraftServer minecraftServer) {
+        Socket socket = new EmptySocket();
+        NetworkManager conn = null;
         try {
-            NetworkManager conn = new EmptyNetworkManager(EnumProtocolDirection.CLIENTBOUND);
+            conn = new EmptyNetworkManager(EnumProtocolDirection.CLIENTBOUND);
             playerConnection = new EmptyNetHandler(minecraftServer, conn, this);
             conn.a(playerConnection);
+            socket.close();
         } catch (IOException e) {
+            // swallow
         } catch (NoSuchMethodError err) {
-            // reported by a single user on Discord
+            // swallow, reported by a single user on Discord
         }
         AttributeInstance range = getAttributeInstance(GenericAttributes.FOLLOW_RANGE);
         if (range == null) {
@@ -251,6 +253,8 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
         controllerJump = new PlayerControllerJump(this);
         controllerMove = new PlayerControllerMove(this);
         navigation = new PlayerNavigation(this, world);
+        invulnerableTicks = 0;
+        NMS.setStepHeight(getBukkitEntity(), 1); // the default (0) breaks step climbing setSkinFlags((byte) 0xFF);
     }
 
     public boolean isNavigating() {
@@ -259,10 +263,11 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
 
     @Override
     public boolean k_() {
-        if (npc == null || !npc.isFlyable())
+        if (npc == null || !npc.isFlyable()) {
             return super.k_();
-        else
+        } else {
             return false;
+        }
     }
 
     @Override
@@ -276,7 +281,7 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
         if (!navigating && getBukkitEntity() != null
                 && (!npc.hasTrait(Gravity.class) || npc.getOrAddTrait(Gravity.class).hasGravity())
                 && Util.isLoaded(getBukkitEntity().getLocation(LOADED_LOCATION))
-                && (!npc.isProtected() || SpigotUtil.checkYSafe(locY, getBukkitEntity().getWorld()))) {
+                && SpigotUtil.checkYSafe(locY, getBukkitEntity().getWorld())) {
             moveWithFallDamage(0, 0);
         }
         if (Math.abs(motX) < EPSILON && Math.abs(motY) < EPSILON && Math.abs(motZ) < EPSILON) {
@@ -290,14 +295,7 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
         }
         updateAI();
         bL();
-        NMSImpl.callNPCMoveEvent(this);
-        if (npc.useMinecraftAI()) {
-            foodData.a(this);
-        }
         if (npc.data().get(NPC.Metadata.PICKUP_ITEMS, false)) {
-            if (this.bp > 0) {
-                --this.bp;
-            }
             AxisAlignedBB axisalignedbb = null;
             if (this.vehicle != null && !this.vehicle.dead) {
                 axisalignedbb = this.getBoundingBox().a(this.vehicle.getBoundingBox()).grow(1.0, 0.0, 1.0);
@@ -325,7 +323,7 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
         ba *= 0.98F;
         bb *= 0.9F;
         moveWithFallDamage(aZ, ba); // movement method
-        NMS.setHeadAndBodyYaw(getBukkitEntity(), yaw);
+        NMS.setHeadYaw(getBukkitEntity(), yaw);
         if (jumpTicks > 0) {
             jumpTicks--;
         }
@@ -368,6 +366,10 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
         npc.getOrAddTrait(SkinTrait.class).setSkinPersistent(skinName, signature, data);
     }
 
+    public void setTracked(PlayerlistTrackerEntry trackerEntry) {
+        this.trackerEntry = trackerEntry;
+    }
+
     @Override
     public void t_() {
         super.t_();
@@ -391,15 +393,16 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
 
         updateEffects = true;
         boolean itemChanged = false;
-        for (int slot = 0; slot < 5; slot++) {
+        for (int slot = 0; slot < this.inventory.armor.length; slot++) {
             ItemStack equipment = getEquipment(slot);
             ItemStack cache = equipmentCache.get(slot);
-            if ((cache != null || equipment != null)
-                    && (cache == null ^ equipment == null || !ItemStack.matches(cache, equipment))) {
+            if (!(cache == null && equipment == null)
+                    && (cache == null ^ equipment == null || !ItemStack.equals(cache, equipment))) {
                 itemChanged = true;
                 if (cache != null) {
                     this.getAttributeMap().a(cache.B());
                 }
+
                 if (equipment != null) {
                     this.getAttributeMap().b(equipment.B());
                 }
@@ -409,8 +412,8 @@ public class EntityHumanNPC extends EntityPlayer implements NPCHolder, Skinnable
         if (!itemChanged)
             return;
         Location current = getBukkitEntity().getLocation(packetLocationCache);
-        Packet<?>[] packets = new Packet[5];
-        for (int i = 0; i < 5; i++) {
+        Packet<?>[] packets = new Packet[this.inventory.armor.length];
+        for (int i = 0; i < this.inventory.armor.length; i++) {
             packets[i] = new PacketPlayOutEntityEquipment(getId(), i, getEquipment(i));
         }
         NMSImpl.sendPacketsNearby(getBukkitEntity(), current, packets);

@@ -2,7 +2,9 @@ package net.citizensnpcs.nms.v1_8_R3.util;
 
 import java.util.Random;
 
+import net.citizensnpcs.nms.v1_8_R3.entity.EntityHumanNPC;
 import net.citizensnpcs.util.NMS;
+import net.minecraft.server.v1_8_R3.AttributeInstance;
 import net.minecraft.server.v1_8_R3.ControllerMove;
 import net.minecraft.server.v1_8_R3.EntityInsentient;
 import net.minecraft.server.v1_8_R3.EntityLiving;
@@ -52,9 +54,9 @@ public class PlayerControllerMove extends ControllerMove {
             f3 = -f2;
         }
         float f4 = f + f3;
-        if (f4 < 0.0F) {
+        if (f4 < 0.0F)
             f4 += 360.0F;
-        } else if (f4 > 360.0F) {
+        else if (f4 > 360.0F) {
             f4 -= 360.0F;
         }
         return f4;
@@ -68,26 +70,31 @@ public class PlayerControllerMove extends ControllerMove {
     @Override
     public void c() {
         this.a.ba = 0F;
-        if (!this.f)
-            return;
-        this.f = false;
-        double dX = this.b - this.a.locX;
-        double dZ = this.d - this.a.locZ;
-        double dY = this.c - this.a.locY;
-        double dXZ = Math.sqrt(dX * dX + dZ * dZ);
-        if (Math.abs(dY) < 1.0 && dXZ < 0.025)
-            return;
-        float f = (float) Math.toDegrees(Math.atan2(dZ, dX)) - 90.0F;
-        this.a.yaw = a(this.a.yaw, f, 90.0F);
-        NMS.setHeadYaw(a.getBukkitEntity(), this.a.yaw);
-        this.a.ba = (float) (this.e * this.a.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).getValue());
-        this.a.k(this.a.ba);
-        if (a instanceof EntitySlime && h-- <= 0) {
-            this.h = new Random().nextInt(20) + 10;
-            this.h /= 3;
-            ((EntityInsentient) this.a).getControllerJump().a();
-        } else if (dY > NMS.getStepHeight(a.getBukkitEntity()) && dXZ < 0.4D) {
-            NMS.setShouldJump(a.getBukkitEntity());
+        if (this.f) {
+            this.f = false;
+            double dX = this.b - this.a.locX;
+            double dZ = this.d - this.a.locZ;
+            double dY = this.c - this.a.locY;
+            double dXZ = Math.sqrt(dX * dX + dZ * dZ);
+            if (Math.abs(dY) < 1.0 && dXZ < 0.025)
+                return;
+            float f = (float) Math.toDegrees(Math.atan2(dZ, dX)) - 90.0F;
+            this.a.yaw = a(this.a.yaw, f, 90.0F);
+            NMS.setHeadYaw(a.getBukkitEntity(), this.a.yaw);
+            AttributeInstance speed = this.a.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED);
+            speed.setValue(0.1D * this.e);
+            float movement = (float) (this.e * speed.getValue()) * 10;
+            this.a.k(movement);
+            this.a.ba = movement;
+            if (shouldSlimeJump() || ((dY >= NMS.getStepHeight(a.getBukkitEntity())) && dXZ < 0.4)) {
+                this.h = cg();
+                this.h /= 3;
+                if (this.a instanceof EntityHumanNPC) {
+                    ((EntityHumanNPC) this.a).getControllerJump().a();
+                } else {
+                    ((EntityInsentient) this.a).getControllerJump().a();
+                }
+            }
         }
     }
 
@@ -108,5 +115,15 @@ public class PlayerControllerMove extends ControllerMove {
     @Override
     public double f() {
         return this.d;
+    }
+
+    private boolean shouldSlimeJump() {
+        if (!(this.a instanceof EntitySlime)) {
+            return false;
+        }
+        if (this.h-- <= 0) {
+            return true;
+        }
+        return false;
     }
 }

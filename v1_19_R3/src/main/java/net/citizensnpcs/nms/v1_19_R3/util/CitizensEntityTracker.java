@@ -1,22 +1,23 @@
 package net.citizensnpcs.nms.v1_19_R3.util;
 
 import java.lang.invoke.MethodHandle;
-import java.util.Collection;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Player;
 
 import com.google.common.collect.ForwardingSet;
 
-import net.citizensnpcs.api.event.NPCLinkToPlayerEvent;
+import net.citizensnpcs.Settings.Setting;
+import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.event.NPCSeenByPlayerEvent;
-import net.citizensnpcs.api.event.NPCUnlinkFromPlayerEvent;
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.nms.v1_19_R3.entity.EntityHumanNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
 import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
+import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ChunkMap.TrackedEntity;
 import net.minecraft.server.level.ServerEntity;
@@ -31,14 +32,13 @@ public class CitizensEntityTracker extends ChunkMap.TrackedEntity {
         map.super(entity, i, j, flag);
         this.tracker = entity;
         try {
-            Set<ServerPlayerConnection> set = seenBy;
+            Set<ServerPlayerConnection> set = (Set<ServerPlayerConnection>) TRACKING_SET_GETTER.invoke(this);
             TRACKING_SET_SETTER.invoke(this, new ForwardingSet<ServerPlayerConnection>() {
                 @Override
                 public boolean add(ServerPlayerConnection conn) {
                     boolean res = super.add(conn);
                     if (res) {
-                        Bukkit.getPluginManager().callEvent(new NPCLinkToPlayerEvent(((NPCHolder) tracker).getNPC(),
-                                conn.getPlayer().getBukkitEntity(), !Bukkit.isPrimaryThread()));
+                        updateLastPlayer(conn.getPlayer());
                     }
                     return res;
                 }
@@ -46,16 +46,6 @@ public class CitizensEntityTracker extends ChunkMap.TrackedEntity {
                 @Override
                 protected Set<ServerPlayerConnection> delegate() {
                     return set;
-                }
-
-                @Override
-                public boolean remove(Object conn) {
-                    boolean removed = super.remove(conn);
-                    if (removed) {
-                        Bukkit.getPluginManager().callEvent(new NPCUnlinkFromPlayerEvent(((NPCHolder) tracker).getNPC(),
-                                ((ServerPlayerConnection) conn).getPlayer().getBukkitEntity()));
-                    }
-                    return removed;
                 }
             });
         } catch (Throwable e) {
@@ -67,12 +57,37 @@ public class CitizensEntityTracker extends ChunkMap.TrackedEntity {
         this(map, getTracker(entry), getTrackingDistance(entry), getE(entry), getF(entry));
     }
 
+    public void updateLastPlayer(ServerPlayer lastUpdatedPlayer) {
+        if (tracker.isRemoved() || tracker.getBukkitEntity().getType() != EntityType.PLAYER
+                || !CitizensAPI.hasImplementation())
+            return;
+        final ServerPlayer entityplayer = lastUpdatedPlayer;
+        NPC npc = ((NPCHolder) tracker).getNPC();
+        boolean resetYaw = npc.data().get(NPC.Metadata.RESET_YAW_ON_SPAWN, Setting.RESET_YAW_ON_SPAWN.asBoolean());
+        boolean sendTabRemove = NMS.sendTabListAdd(entityplayer.getBukkitEntity(), (Player) tracker.getBukkitEntity());
+        if (!sendTabRemove || !Setting.DISABLE_TABLIST.asBoolean()) {
+            if (resetYaw) {
+                Bukkit.getScheduler()
+                        .scheduleSyncDelayedTask(CitizensAPI.getPlugin(), () -> NMSImpl
+                                .sendPacket(entityplayer.getBukkitEntity(), new ClientboundAnimatePacket(tracker, 0)),
+                                1);
+            }
+            return;
+        }
+        Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), () -> {
+            if (resetYaw) {
+                NMSImpl.sendPacket(entityplayer.getBukkitEntity(), new ClientboundAnimatePacket(tracker, 0));
+            }
+            NMS.sendTabListRemove(entityplayer.getBukkitEntity(), (Player) tracker.getBukkitEntity());
+        }, Setting.TABLIST_REMOVE_PACKET_DELAY.asTicks());
+    }
+
     @Override
     public void updatePlayer(final ServerPlayer entityplayer) {
         if (entityplayer instanceof EntityHumanNPC)
             return;
 
-        if (!seenBy.contains(entityplayer.connection) && tracker instanceof NPCHolder) {
+        if (!tracker.isRemoved() && !seenBy.contains(entityplayer.connection) && tracker instanceof NPCHolder) {
             NPC npc = ((NPCHolder) tracker).getNPC();
             if (REQUIRES_SYNC == null) {
                 REQUIRES_SYNC = !Bukkit.isPrimaryThread();
@@ -103,6 +118,7 @@ public class CitizensEntityTracker extends ChunkMap.TrackedEntity {
             if (cancelled)
                 return;
         }
+
         super.updatePlayer(entityplayer);
     }
 
@@ -122,10 +138,6 @@ public class CitizensEntityTracker extends ChunkMap.TrackedEntity {
             e.printStackTrace();
         }
         return false;
-    }
-
-    public static Collection<org.bukkit.entity.Player> getSeenBy(TrackedEntity tracker) {
-        return tracker.seenBy.stream().map(c -> c.getPlayer().getBukkitEntity()).collect(Collectors.toSet());
     }
 
     private static Entity getTracker(TrackedEntity entry) {
@@ -153,5 +165,6 @@ public class CitizensEntityTracker extends ChunkMap.TrackedEntity {
     private static final MethodHandle TRACKER_ENTRY = NMS.getFirstGetter(TrackedEntity.class, ServerEntity.class);
     private static final MethodHandle TRACKING_RANGE = NMS.getFirstGetter(TrackedEntity.class, int.class);
     private static final MethodHandle TRACKING_RANGE_SETTER = NMS.getFirstFinalSetter(TrackedEntity.class, int.class);
+    private static final MethodHandle TRACKING_SET_GETTER = NMS.getFirstGetter(TrackedEntity.class, Set.class);
     private static final MethodHandle TRACKING_SET_SETTER = NMS.getFirstFinalSetter(TrackedEntity.class, Set.class);
 }

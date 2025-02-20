@@ -6,7 +6,6 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -27,30 +26,16 @@ public class CustomEntityRegistry extends RegistryBlocks implements Supplier<Reg
     }
 
     @Override
-    public MinecraftKey a() {
-        return wrapped.a();
-    }
-
-    @Override
     public int a(Object key) {
-        if (entityIds.containsKey(key))
+        if (entityIds.containsKey(key)) {
             return entityIds.get(key);
+        }
         return wrapped.a((EntityTypes) key);
     }
 
     @Override
     public Object a(Random paramRandom) {
         return wrapped.a(paramRandom);
-    }
-
-    @Override
-    public boolean c() {
-        return wrapped.c();
-    }
-
-    @Override
-    public Stream<EntityTypes<?>> d() {
-        return wrapped.d();
     }
 
     public EntityTypes findType(Class<?> search) {
@@ -77,22 +62,25 @@ public class CustomEntityRegistry extends RegistryBlocks implements Supplier<Reg
 
     @Override
     public EntityTypes get(MinecraftKey key) {
-        if (entities.containsKey(key))
+        if (entities.containsKey(key)) {
             return entities.get(key);
+        }
         return wrapped.get(key);
     }
 
     @Override
     public MinecraftKey getKey(Object value) {
-        if (entityClasses.containsKey(value))
+        if (entityClasses.containsKey(value)) {
             return entityClasses.get(value);
+        }
         return wrapped.getKey((EntityTypes) value);
     }
 
     @Override
     public Optional getOptional(MinecraftKey var0) {
-        if (entities.containsKey(var0))
+        if (entities.containsKey(var0)) {
             return Optional.of(entities.get(var0));
+        }
         return this.wrapped.getOptional(var0);
     }
 

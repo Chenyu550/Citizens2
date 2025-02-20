@@ -88,11 +88,11 @@ public class PandaTrait extends Trait {
     }
 
     public void setHiddenGene(Panda.Gene gene) {
-        hiddenGene = gene;
+        this.hiddenGene = gene;
     }
 
     public void setMainGene(Panda.Gene gene) {
-        mainGene = gene;
+        this.mainGene = gene;
     }
 
     public void setRolling(boolean rolling) {
@@ -126,7 +126,7 @@ public class PandaTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "panda --gene (main gene) --hiddengene (hidden gene) -e(ating) -s(itting) -n (sneezing) -r(olling)",
-            desc = "",
+            desc = "Sets panda modifiers",
             modifiers = { "panda" },
             flags = "srne",
             min = 1,
@@ -138,16 +138,18 @@ public class PandaTrait extends Trait {
         PandaTrait trait = npc.getOrAddTrait(PandaTrait.class);
         String output = "";
         if (args.hasValueFlag("gene")) {
-            if (gene == null)
+            if (gene == null) {
                 throw new CommandUsageException(Messages.INVALID_PANDA_GENE,
                         Util.listValuesPretty(Panda.Gene.values()));
+            }
             trait.setMainGene(gene);
             output += ' ' + Messaging.tr(Messages.PANDA_MAIN_GENE_SET, args.getFlag("gene"));
         }
         if (args.hasValueFlag("hiddengene")) {
-            if (hiddengene == null)
+            if (hiddengene == null) {
                 throw new CommandUsageException(Messages.INVALID_PANDA_GENE,
                         Util.listValuesPretty(Panda.Gene.values()));
+            }
             trait.setHiddenGene(hiddengene);
             output += ' ' + Messaging.tr(Messages.PANDA_HIDDEN_GENE_SET, hiddengene);
         }
@@ -173,8 +175,9 @@ public class PandaTrait extends Trait {
         }
         if (!output.isEmpty()) {
             Messaging.send(sender, output.trim());
-        } else
+        } else {
             throw new CommandUsageException();
+        }
     }
 
     private static boolean SUPPORT_ROLLING_SNEEZING = true;

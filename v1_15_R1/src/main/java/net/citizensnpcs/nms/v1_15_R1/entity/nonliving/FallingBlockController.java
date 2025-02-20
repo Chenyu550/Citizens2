@@ -17,12 +17,10 @@ import net.citizensnpcs.nms.v1_15_R1.util.NMSImpl;
 import net.citizensnpcs.npc.AbstractEntityController;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_15_R1.AxisAlignedBB;
 import net.minecraft.server.v1_15_R1.Block;
 import net.minecraft.server.v1_15_R1.EntityFallingBlock;
-import net.minecraft.server.v1_15_R1.EntityPlayer;
 import net.minecraft.server.v1_15_R1.EntityTypes;
 import net.minecraft.server.v1_15_R1.EnumMoveType;
 import net.minecraft.server.v1_15_R1.EnumPistonReaction;
@@ -35,7 +33,9 @@ import net.minecraft.server.v1_15_R1.World;
 import net.minecraft.server.v1_15_R1.WorldServer;
 
 public class FallingBlockController extends AbstractEntityController {
-
+    public FallingBlockController() {
+        super(EntityFallingBlockNPC.class);
+    }
 
     @Override
     protected Entity createEntity(Location at, NPC npc) {
@@ -74,14 +74,10 @@ public class FallingBlockController extends AbstractEntityController {
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public boolean b(Tag<FluidType> tag) {
-            if (npc == null)
+            if (npc == null) {
                 return super.b(tag);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.b(tag);
             if (!npc.isPushableByFluids()) {

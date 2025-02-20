@@ -50,17 +50,17 @@ public class GoatTrait extends Trait {
     }
 
     public void setLeftHorn(boolean horn) {
-        leftHorn = horn;
+        this.leftHorn = horn;
     }
 
     public void setRightHorn(boolean horn) {
-        rightHorn = horn;
+        this.rightHorn = horn;
     }
 
     @Command(
             aliases = { "npc" },
             usage = "goat -l(eft) -r(ight) -n(either) -b(oth) horn",
-            desc = "",
+            desc = "Sets goat modifiers",
             modifiers = { "goat" },
             flags = "lrnb",
             min = 1,
@@ -84,7 +84,7 @@ public class GoatTrait extends Trait {
         }
         trait.setLeftHorn(left);
         trait.setRightHorn(right);
-        String output = Messaging.tr(Messages.GOAT_HORNS_SET, npc.getName(), left, right);
+        String output = Messaging.tr(Messages.NPC_GOAT_HORNS_SET, npc.getName(), left, right);
         if (!output.isEmpty()) {
             Messaging.send(sender, output);
         }

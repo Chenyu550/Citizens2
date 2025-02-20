@@ -25,7 +25,8 @@ import net.minecraft.server.v1_15_R1.World;
 public abstract class MobEntityController extends AbstractEntityController {
     private final Class<?> clazz;
 
-protected MobEntityController(Class<?> clazz) {NMS.registerEntityClass(clazz, null);
+    protected MobEntityController(Class<?> clazz) {
+        super(clazz);
         this.clazz = clazz;
     }
 
@@ -83,7 +84,7 @@ protected MobEntityController(Class<?> clazz) {NMS.registerEntityClass(clazz, nu
         }
     }
 
-    private static final Map<Class<?>, Constructor<?>> CONSTRUCTOR_CACHE = new WeakHashMap<>();
+    private static final Map<Class<?>, Constructor<?>> CONSTRUCTOR_CACHE = new WeakHashMap<Class<?>, Constructor<?>>();
     private static final MethodHandle UUID_FIELD = NMS.getSetter(net.minecraft.server.v1_15_R1.Entity.class,
             "uniqueID");
 }

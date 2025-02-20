@@ -29,13 +29,13 @@ public class PufferFishTrait extends Trait {
     }
 
     public void setPuffState(int state) {
-        puffState = state;
+        this.puffState = state;
     }
 
     @Command(
             aliases = { "npc" },
             usage = "pufferfish (--state state)",
-            desc = "",
+            desc = "Sets pufferfish modifiers",
             modifiers = { "pufferfish" },
             min = 1,
             max = 1,

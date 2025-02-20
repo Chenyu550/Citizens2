@@ -34,7 +34,7 @@ public class WaypointCommands {
     @Command(
             aliases = { "waypoints", "waypoint", "wp" },
             usage = "add [x] [y] [z] (world) (--index idx)",
-            desc = "",
+            desc = "Adds a waypoint at a point",
             modifiers = { "add" },
             min = 4,
             max = 5,
@@ -52,8 +52,6 @@ public class WaypointCommands {
         if (index == null) {
             index = waypoints.size();
         }
-        if (index > waypoints.size() || index < 0)
-            throw new CommandException("Index out of range. Can't be more than " + waypoints.size());
         waypoints.add(index, new Waypoint(loc));
         Messaging.sendTr(sender, Messages.WAYPOINT_ADDED, Util.prettyPrintLocation(loc), index);
     }
@@ -61,15 +59,14 @@ public class WaypointCommands {
     @Command(
             aliases = { "waypoints", "waypoint", "wp" },
             usage = "disableteleport",
-            desc = "",
+            desc = "Disables teleportation when stuck",
             modifiers = { "disableteleport", "dt" },
             min = 1,
             max = 1,
             permission = "citizens.waypoints.disableteleport")
     public void disableTeleporting(CommandContext args, CommandSender sender, NPC npc) throws CommandException {
-        npc.data().setPersistent(NPC.Metadata.DISABLE_DEFAULT_STUCK_ACTION,
-                !npc.data().get(NPC.Metadata.DISABLE_DEFAULT_STUCK_ACTION,
-                        !Setting.DEFAULT_STUCK_ACTION.asString().contains("teleport")));
+        npc.data().setPersistent(NPC.Metadata.DISABLE_DEFAULT_STUCK_ACTION, !npc.data()
+                .get(NPC.Metadata.DISABLE_DEFAULT_STUCK_ACTION, !Setting.DEFAULT_STUCK_ACTION.asString().contains("teleport")));
         if (npc.data().get(NPC.Metadata.DISABLE_DEFAULT_STUCK_ACTION,
                 !Setting.DEFAULT_STUCK_ACTION.asString().contains("teleport"))) {
             npc.getNavigator().getDefaultParameters().stuckAction(null);
@@ -83,7 +80,7 @@ public class WaypointCommands {
     @Command(
             aliases = { "waypoints", "waypoint", "wp" },
             usage = "hpa",
-            desc = "",
+            desc = "Debugging command",
             modifiers = { "hpa" },
             min = 1,
             max = 1,
@@ -101,8 +98,24 @@ public class WaypointCommands {
 
     @Command(
             aliases = { "waypoints", "waypoint", "wp" },
+            usage = "opendoors",
+            desc = "Enables opening doors when pathfinding",
+            modifiers = { "opendoors", "od" },
+            min = 1,
+            max = 1,
+            permission = "citizens.waypoints.opendoors")
+    public void openDoors(CommandContext args, CommandSender sender, NPC npc) throws CommandException {
+        boolean opensDoors = !npc.data().get(NPC.Metadata.PATHFINDER_OPEN_DOORS, false);
+        npc.data().setPersistent(NPC.Metadata.PATHFINDER_OPEN_DOORS, opensDoors);
+        Messaging.sendTr(sender,
+                opensDoors ? Messages.PATHFINDER_OPEN_DOORS_ENABLED : Messages.PATHFINDER_OPEN_DOORS_DISABLED,
+                npc.getName());
+    }
+
+    @Command(
+            aliases = { "waypoints", "waypoint", "wp" },
             usage = "provider [provider name]",
-            desc = "",
+            desc = "Sets the current waypoint provider",
             modifiers = { "provider" },
             min = 1,
             max = 2,
@@ -114,8 +127,8 @@ public class WaypointCommands {
             waypoints.describeProviders(sender);
             return;
         }
-        if (sender instanceof Player && Editor.hasEditor((Player) sender)) {
-            Editor.leave((Player) sender);
+        if (sender instanceof Player && Editor.hasEditor(((Player) sender))) {
+            Editor.leave(((Player) sender));
         }
         boolean success = waypoints.setWaypointProvider(args.getString(1));
         if (!success)
@@ -126,7 +139,7 @@ public class WaypointCommands {
     @Command(
             aliases = { "waypoints", "waypoint", "wp" },
             usage = "remove (x y z world) (--index idx)",
-            desc = "",
+            desc = "Adds a waypoint at a point",
             modifiers = { "remove" },
             min = 1,
             max = 5,

@@ -20,7 +20,6 @@ import net.minecraft.server.v1_12_R1.DamageSource;
 import net.minecraft.server.v1_12_R1.Entity;
 import net.minecraft.server.v1_12_R1.EntityCow;
 import net.minecraft.server.v1_12_R1.EntityHuman;
-import net.minecraft.server.v1_12_R1.EntityPlayer;
 import net.minecraft.server.v1_12_R1.EnumHand;
 import net.minecraft.server.v1_12_R1.EnumPistonReaction;
 import net.minecraft.server.v1_12_R1.IBlockData;
@@ -89,7 +88,7 @@ public class CowController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
@@ -98,14 +97,10 @@ public class CowController extends MobEntityController {
             if (npc == null || !npc.isProtected())
                 return super.a(entityhuman, enumhand);
             ItemStack itemstack = entityhuman.b(enumhand);
-            if (itemstack.getItem() == Items.BUCKET && !entityhuman.abilities.canInstantlyBuild && !this.isBaby())
+            if (itemstack.getItem() == Items.BUCKET && !entityhuman.abilities.canInstantlyBuild && !this.isBaby()) {
                 return false;
+            }
             return super.a(entityhuman, enumhand);
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
@@ -123,11 +118,6 @@ public class CowController extends MobEntityController {
         }
 
         @Override
-        public boolean bo() {
-            return npc == null ? super.bo() : npc.isPushableByFluids();
-        }
-
-        @Override
         protected SoundEffect cf() {
             return NMSImpl.getSoundEffect(npc, super.cf(), NPC.Metadata.DEATH_SOUND);
         }
@@ -140,11 +130,6 @@ public class CowController extends MobEntityController {
             if (npc != null) {
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
             }
-        }
-
-        @Override
-        public float ct() {
-            return NMS.getJumpPower(npc, super.ct());
         }
 
         @Override
@@ -217,10 +202,11 @@ public class CowController extends MobEntityController {
 
         @Override
         public boolean m_() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.m_();
-            else
+            } else {
                 return false;
+            }
         }
     }
 }

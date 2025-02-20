@@ -6,12 +6,10 @@ import java.util.List;
 import java.util.function.Function;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Vector;
 
 import com.google.common.collect.Iterables;
@@ -33,16 +31,16 @@ import net.citizensnpcs.api.ai.event.NavigationReplaceEvent;
 import net.citizensnpcs.api.ai.event.NavigationStuckEvent;
 import net.citizensnpcs.api.ai.event.NavigatorCallback;
 import net.citizensnpcs.api.astar.pathfinder.DoorExaminer;
-import net.citizensnpcs.api.astar.pathfinder.FlyingBlockExaminer;
 import net.citizensnpcs.api.astar.pathfinder.MinecraftBlockExaminer;
 import net.citizensnpcs.api.astar.pathfinder.SwimmingExaminer;
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.api.util.DataKey;
-import net.citizensnpcs.api.util.Messaging;
 import net.citizensnpcs.api.util.SpigotUtil;
 import net.citizensnpcs.npc.ai.AStarNavigationStrategy.AStarPlanner;
+import net.citizensnpcs.npc.ai.MCNavigationStrategy.MCNavigator;
 import net.citizensnpcs.trait.RotationTrait;
 import net.citizensnpcs.trait.RotationTrait.PacketRotationSession;
+import net.citizensnpcs.util.ChunkCoord;
 import net.citizensnpcs.util.NMS;
 
 public class CitizensNavigator implements Navigator, Runnable {
@@ -51,7 +49,7 @@ public class CitizensNavigator implements Navigator, Runnable {
             .range(Setting.DEFAULT_PATHFINDING_RANGE.asFloat()).debug(Setting.DEBUG_PATHFINDING.asBoolean())
             .defaultAttackStrategy((attacker, target) -> {
                 NMS.attack(attacker, target);
-                return true;
+                return false;
             }).attackRange(Setting.NPC_ATTACK_DISTANCE.asDouble())
             .updatePathRate(Setting.DEFAULT_PATHFINDER_UPDATE_PATH_RATE.asTicks())
             .distanceMargin(Setting.DEFAULT_DISTANCE_MARGIN.asDouble())
@@ -59,8 +57,7 @@ public class CitizensNavigator implements Navigator, Runnable {
             .stationaryTicks(Setting.DEFAULT_STATIONARY_DURATION.asTicks()).stuckAction(TeleportStuckAction.INSTANCE)
             .examiner(new MinecraftBlockExaminer()).useNewPathfinder(Setting.USE_NEW_PATHFINDER.asBoolean())
             .straightLineTargetingDistance(Setting.DEFAULT_STRAIGHT_LINE_TARGETING_DISTANCE.asFloat())
-            .destinationTeleportMargin(Setting.DEFAULT_DESTINATION_TELEPORT_MARGIN.asDouble())
-            .fallDistance(Setting.PATHFINDER_FALL_DISTANCE.asInt());
+            .destinationTeleportMargin(Setting.DEFAULT_DESTINATION_TELEPORT_MARGIN.asDouble());
     private PathStrategy executing;
     private int lastX, lastY, lastZ;
     private NavigatorParameters localParams = defaultParams;
@@ -95,15 +92,13 @@ public class CitizensNavigator implements Navigator, Runnable {
 
     @Override
     public boolean canNavigateTo(Location dest, NavigatorParameters params) {
-        if (defaultParams.useNewPathfinder() || !(npc.getEntity() instanceof LivingEntity)) {
-            if (npc.isFlyable()) {
-                params.examiner(new FlyingBlockExaminer());
-            }
+        if (defaultParams.useNewPathfinder()) {
             AStarPlanner planner = new AStarPlanner(params, npc.getStoredLocation(), dest);
             planner.tick(Setting.MAXIMUM_ASTAR_ITERATIONS.asInt(), Setting.MAXIMUM_ASTAR_ITERATIONS.asInt());
             return planner.plan != null;
         } else {
-            return NMS.canNavigateTo(npc.getEntity(), dest, params);
+            MCNavigator nav = NMS.getTargetNavigator(npc.getEntity(), dest, params);
+            return nav.getCancelReason() == null;
         }
     }
 
@@ -119,8 +114,9 @@ public class CitizensNavigator implements Navigator, Runnable {
 
     @Override
     public NavigatorParameters getLocalParameters() {
-        if (!isNavigating())
+        if (!isNavigating()) {
             return defaultParams;
+        }
         return localParams;
     }
 
@@ -158,9 +154,6 @@ public class CitizensNavigator implements Navigator, Runnable {
         if (root.keyExists("pathfindingrange")) {
             defaultParams.range((float) root.getDouble("pathfindingrange"));
         }
-        if (root.keyExists("usenewpathfinder")) {
-            defaultParams.useNewPathfinder(root.getBoolean("usenewpathfinder"));
-        }
         if (root.keyExists("stationaryticks")) {
             defaultParams.stationaryTicks(root.getInt("stationaryticks"));
         }
@@ -172,9 +165,6 @@ public class CitizensNavigator implements Navigator, Runnable {
         }
         if (root.keyExists("updatepathrate")) {
             defaultParams.updatePathRate(root.getInt("updatepathrate"));
-        }
-        if (root.keyExists("falldistance")) {
-            defaultParams.fallDistance(root.getInt("falldistance"));
         }
         defaultParams.speedModifier((float) root.getDouble("speedmodifier", 1F));
         defaultParams.avoidWater(root.getBoolean("avoidwater"));
@@ -199,22 +189,20 @@ public class CitizensNavigator implements Navigator, Runnable {
         updateMountedStatus();
         if (!isNavigating() || !npc.isSpawned() || isPaused())
             return;
-
         Location npcLoc = npc.getStoredLocation();
         Location targetLoc = getTargetAsLocation();
-
         if (!npcLoc.getWorld().equals(targetLoc.getWorld()) || localParams.range() < npcLoc.distance(targetLoc)) {
             stopNavigating(CancelReason.STUCK);
             return;
         }
         if (updateStationaryStatus())
             return;
-
         updatePathfindingRange();
         boolean finished = executing.update();
         if (!finished) {
             localParams.run();
         }
+
         if (localParams.lookAtFunction() != null) {
             if (session == null) {
                 RotationTrait trait = npc.getOrAddTrait(RotationTrait.class);
@@ -223,12 +211,14 @@ public class CitizensNavigator implements Navigator, Runnable {
             }
             session.getSession().rotateToFace(localParams.lookAtFunction().apply(this));
         }
+
         if (localParams.destinationTeleportMargin() > 0
                 && npcLoc.distance(targetLoc) <= localParams.destinationTeleportMargin()) {
             // TODO: easing?
             npc.teleport(targetLoc, TeleportCause.PLUGIN);
             finished = true;
         }
+
         if (!finished)
             return;
 
@@ -270,11 +260,6 @@ public class CitizensNavigator implements Navigator, Runnable {
         } else {
             root.removeKey("updatepathrate");
         }
-        if (defaultParams.fallDistance() != Setting.PATHFINDER_FALL_DISTANCE.asTicks()) {
-            root.setInt("falldistance", defaultParams.fallDistance());
-        } else {
-            root.removeKey("falldistance");
-        }
         if (defaultParams.useNewPathfinder() != Setting.USE_NEW_PATHFINDER.asBoolean()) {
             root.setBoolean("usenewpathfinder", defaultParams.useNewPathfinder());
         } else {
@@ -297,7 +282,6 @@ public class CitizensNavigator implements Navigator, Runnable {
     public void setStraightLineTarget(Entity target, boolean aggressive) {
         if (!npc.isSpawned())
             throw new IllegalStateException("npc is not spawned");
-
         if (target == null) {
             cancelNavigation();
             return;
@@ -312,7 +296,6 @@ public class CitizensNavigator implements Navigator, Runnable {
     public void setStraightLineTarget(Location target) {
         if (!npc.isSpawned())
             throw new IllegalStateException("npc is not spawned");
-
         if (target == null) {
             cancelNavigation();
             return;
@@ -324,7 +307,6 @@ public class CitizensNavigator implements Navigator, Runnable {
     public void setTarget(Entity target, boolean aggressive) {
         if (!npc.isSpawned())
             throw new IllegalStateException("npc is not spawned");
-
         if (target == null) {
             cancelNavigation();
             return;
@@ -336,32 +318,8 @@ public class CitizensNavigator implements Navigator, Runnable {
     public void setTarget(Function<NavigatorParameters, PathStrategy> strategy) {
         if (!npc.isSpawned())
             throw new IllegalStateException("npc is not spawned");
-
-        if (executing != null) {
-            stopNavigating(CancelReason.REPLACE);
-        }
-        localParams = defaultParams.clone();
-
-        if (localParams.useNewPathfinder()) {
-            int fallDistance = localParams.fallDistance();
-            if (fallDistance != -1) {
-                localParams.examiner(new FallingExaminer(fallDistance));
-            }
-            if (npc.data().get(NPC.Metadata.PATHFINDER_OPEN_DOORS, Setting.NEW_PATHFINDER_OPENS_DOORS.asBoolean())) {
-                localParams.examiner(new DoorExaminer());
-            }
-            if (Setting.NEW_PATHFINDER_CHECK_BOUNDING_BOXES.asBoolean()) {
-                localParams.examiner(new BoundingBoxExaminer(npc.getEntity()));
-            }
-        }
-        updatePathfindingRange();
-        executing = strategy.apply(localParams);
-        stationaryTicks = 0;
-        if (npc.isSpawned()) {
-            NMS.updateNavigationWorld(npc.getEntity(), npc.getEntity().getWorld());
-            updateTicket(executing.getTargetAsLocation());
-        }
-        Bukkit.getPluginManager().callEvent(new NavigationBeginEvent(this));
+        switchParams();
+        switchStrategyTo(strategy.apply(localParams));
     }
 
     @Override
@@ -391,7 +349,7 @@ public class CitizensNavigator implements Navigator, Runnable {
             cancelNavigation();
             return;
         }
-        Location target = targetIn.clone();
+        final Location target = targetIn.clone();
         setTarget(params -> {
             if (npc.isFlyable()) {
                 return new FlyingAStarNavigationStrategy(npc, target, params);
@@ -419,10 +377,12 @@ public class CitizensNavigator implements Navigator, Runnable {
         }
         if (!SUPPORT_CHUNK_TICKETS || !CitizensAPI.hasImplementation() || !CitizensAPI.getPlugin().isEnabled())
             return;
-
-        Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(),
-                () -> updateTicket(isNavigating() ? executing.getTargetAsLocation() : null), 10);
-
+        Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), new Runnable() {
+            @Override
+            public void run() {
+                updateTicket(isNavigating() ? executing.getTargetAsLocation() : null);
+            }
+        }, 10);
         // Location loc = npc.getEntity().getLocation(STATIONARY_LOCATION);
         // NMS.look(npc.getEntity(), loc.getYaw(), 0);
     }
@@ -430,16 +390,12 @@ public class CitizensNavigator implements Navigator, Runnable {
     private void stopNavigating(CancelReason reason) {
         if (!isNavigating())
             return;
-
-        if (reason == CancelReason.STUCK && Messaging.isDebugging()) {
-            Messaging.debug(npc, "navigation ended, stuck", executing);
-        }
         if (session != null) {
             session.end();
             session = null;
         }
         Iterator<NavigatorCallback> itr = localParams.callbacks().iterator();
-        List<NavigatorCallback> callbacks = new ArrayList<>();
+        List<NavigatorCallback> callbacks = new ArrayList<NavigatorCallback>();
         while (itr.hasNext()) {
             callbacks.add(itr.next());
             itr.remove();
@@ -463,13 +419,41 @@ public class CitizensNavigator implements Navigator, Runnable {
                 return;
             }
         }
-        NavigationCancelEvent event = reason == CancelReason.REPLACE ? new NavigationReplaceEvent(this)
-                : new NavigationCancelEvent(this, reason);
+        NavigationCancelEvent event = new NavigationCancelEvent(this, reason);
         PathStrategy old = executing;
         Bukkit.getPluginManager().callEvent(event);
         if (old == executing) {
             stopNavigating();
         }
+    }
+
+    private void switchParams() {
+        localParams = defaultParams.clone();
+        int fallDistance = npc.data().get(NPC.Metadata.PATHFINDER_FALL_DISTANCE,
+                Setting.PATHFINDER_FALL_DISTANCE.asInt());
+        if (fallDistance != -1) {
+            localParams.examiner(new FallingExaminer(fallDistance));
+        }
+        if (npc.data().get(NPC.Metadata.PATHFINDER_OPEN_DOORS, Setting.NEW_PATHFINDER_OPENS_DOORS.asBoolean())) {
+            localParams.examiner(new DoorExaminer());
+        }
+        if (Setting.NEW_PATHFINDER_CHECK_BOUNDING_BOXES.asBoolean()) {
+            localParams.examiner(new BoundingBoxExaminer(npc.getEntity()));
+        }
+    }
+
+    private void switchStrategyTo(PathStrategy newStrategy) {
+        updatePathfindingRange();
+        if (executing != null) {
+            Bukkit.getPluginManager().callEvent(new NavigationReplaceEvent(this));
+        }
+        executing = newStrategy;
+        stationaryTicks = 0;
+        if (npc.isSpawned()) {
+            NMS.updateNavigationWorld(npc.getEntity(), npc.getEntity().getWorld());
+            updateTicket(executing.getTargetAsLocation());
+        }
+        Bukkit.getPluginManager().callEvent(new NavigationBeginEvent(this));
     }
 
     private void updateMountedStatus() {
@@ -478,9 +462,9 @@ public class CitizensNavigator implements Navigator, Runnable {
         if (!isNavigating() || true)
             return;
         Entity vehicle = NMS.getVehicle(npc.getEntity());
-        if (!(vehicle instanceof NPCHolder))
+        if (!(vehicle instanceof NPCHolder)) {
             return;
-
+        }
         NPC mount = ((NPCHolder) vehicle).getNPC();
         if (mount.getNavigator().isNavigating())
             return;
@@ -504,7 +488,6 @@ public class CitizensNavigator implements Navigator, Runnable {
     private boolean updateStationaryStatus() {
         if (localParams.stationaryTicks() < 0)
             return false;
-
         Location current = npc.getEntity().getLocation();
         if (!SpigotUtil.checkYSafe(current.getY(), current.getWorld())) {
             stopNavigating(CancelReason.STUCK);
@@ -527,32 +510,32 @@ public class CitizensNavigator implements Navigator, Runnable {
     private void updateTicket(Location target) {
         if (!SUPPORT_CHUNK_TICKETS || !CitizensAPI.hasImplementation() || !CitizensAPI.getPlugin().isEnabled())
             return;
-
-        // already have a ticket on same chunk
-        if (target != null && activeTicket != null && target.getBlockX() >> 4 == activeTicket.getBlockX() >> 4
-                && target.getBlockZ() >> 4 == activeTicket.getBlockZ() >> 4
-                && target.getWorld().equals(activeTicket.getWorld()))
+        if (target != null && this.activeTicket != null
+                && new ChunkCoord(target.getChunk()).equals(new ChunkCoord(this.activeTicket.getChunk()))) {
+            this.activeTicket = target.clone();
             return;
-
-        // switch ticket to the new chunk
-        if (activeTicket != null) {
-            activeTicket.getChunk().removePluginChunkTicket(CitizensAPI.getPlugin());
+        }
+        if (this.activeTicket != null) {
+            try {
+                this.activeTicket.getChunk().removePluginChunkTicket(CitizensAPI.getPlugin());
+            } catch (NoSuchMethodError e) {
+                SUPPORT_CHUNK_TICKETS = false;
+                this.activeTicket = null;
+            }
         }
         if (target == null) {
-            activeTicket = null;
+            this.activeTicket = null;
             return;
         }
-        activeTicket = target.clone();
-        activeTicket.getChunk().addPluginChunkTicket(CitizensAPI.getPlugin());
+        this.activeTicket = target.clone();
+        try {
+            this.activeTicket.getChunk().addPluginChunkTicket(CitizensAPI.getPlugin());
+        } catch (NoSuchMethodError e) {
+            SUPPORT_CHUNK_TICKETS = false;
+            this.activeTicket = null;
+        }
     }
 
     private static boolean SUPPORT_CHUNK_TICKETS = true;
-    private static final int UNINITIALISED_SPEED = Integer.MIN_VALUE;
-    static {
-        try {
-            Chunk.class.getMethod("removePluginChunkTicket", Plugin.class);
-        } catch (NoSuchMethodException | SecurityException e) {
-            SUPPORT_CHUNK_TICKETS = false;
-        }
-    }
+    private static int UNINITIALISED_SPEED = Integer.MIN_VALUE;
 }

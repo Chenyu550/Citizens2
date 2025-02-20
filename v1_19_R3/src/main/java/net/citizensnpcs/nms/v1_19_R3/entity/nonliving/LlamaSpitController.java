@@ -15,12 +15,10 @@ import net.citizensnpcs.nms.v1_19_R3.util.NMSImpl;
 import net.citizensnpcs.npc.AbstractEntityController;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.core.PositionImpl;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -33,11 +31,15 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public class LlamaSpitController extends AbstractEntityController {
+    public LlamaSpitController() {
+        super(EntityLlamaSpitNPC.class);
+    }
 
     @Override
     protected org.bukkit.entity.Entity createEntity(Location at, NPC npc) {
         ServerLevel ws = ((CraftWorld) at.getWorld()).getHandle();
-        final EntityLlamaSpitNPC handle = new EntityLlamaSpitNPC(EntityType.LLAMA_SPIT, ws, npc);
+        final EntityLlamaSpitNPC handle = new EntityLlamaSpitNPC(
+                NMSImpl.<LlamaSpit> getEntityType(EntityLlamaSpitNPC.class), ws, npc);
         handle.absMoveTo(at.getX(), at.getY(), at.getZ(), at.getPitch(), at.getYaw());
         return handle.getBukkitEntity();
     }
@@ -62,11 +64,6 @@ public class LlamaSpitController extends AbstractEntityController {
         public EntityLlamaSpitNPC(Level world, NPC npc, Llama entity) {
             super(world, entity);
             this.npc = (CitizensNPC) npc;
-        }
-
-        @Override
-        public boolean broadcastToPlayer(ServerPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.broadcastToPlayer(player));
         }
 
         @Override
@@ -142,8 +139,9 @@ public class LlamaSpitController extends AbstractEntityController {
 
         @Override
         public boolean updateFluidHeightAndDoFluidPushing(TagKey<Fluid> tagkey, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.updateFluidHeightAndDoFluidPushing(tagkey, d0);
+            }
             Vec3 old = getDeltaMovement().add(0, 0, 0);
             boolean res = super.updateFluidHeightAndDoFluidPushing(tagkey, d0);
             if (!npc.isPushableByFluids()) {

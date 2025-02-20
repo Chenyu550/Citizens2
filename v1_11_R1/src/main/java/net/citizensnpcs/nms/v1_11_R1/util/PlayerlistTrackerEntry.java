@@ -4,27 +4,28 @@ import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_11_R1.entity.CraftPlayer;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Player;
 
 import com.google.common.collect.ForwardingMap;
 import com.google.common.collect.ForwardingSet;
 
-import net.citizensnpcs.api.event.NPCLinkToPlayerEvent;
+import net.citizensnpcs.Settings.Setting;
+import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.event.NPCSeenByPlayerEvent;
-import net.citizensnpcs.api.event.NPCUnlinkFromPlayerEvent;
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
 import net.citizensnpcs.util.NMS;
 import net.minecraft.server.v1_11_R1.Entity;
 import net.minecraft.server.v1_11_R1.EntityPlayer;
 import net.minecraft.server.v1_11_R1.EntityTrackerEntry;
+import net.minecraft.server.v1_11_R1.PacketPlayOutAnimation;
 
 public class PlayerlistTrackerEntry extends EntityTrackerEntry {
     private Entity tracker;
+
     private Map<EntityPlayer, Boolean> trackingMap;
 
     public PlayerlistTrackerEntry(Entity entity, int i, int j, int k, boolean flag) {
@@ -48,16 +49,6 @@ public class PlayerlistTrackerEntry extends EntityTrackerEntry {
                         }
                         return res;
                     }
-
-                    @Override
-                    public Boolean remove(Object conn) {
-                        Boolean removed = super.remove(conn);
-                        if (removed) {
-                            Bukkit.getPluginManager().callEvent(new NPCUnlinkFromPlayerEvent(
-                                    ((NPCHolder) tracker).getNPC(), ((EntityPlayer) conn).getBukkitEntity()));
-                        }
-                        return removed;
-                    }
                 });
             } catch (Throwable e) {
                 e.printStackTrace();
@@ -79,16 +70,6 @@ public class PlayerlistTrackerEntry extends EntityTrackerEntry {
                     protected Set<EntityPlayer> delegate() {
                         return delegate;
                     }
-
-                    @Override
-                    public boolean remove(Object conn) {
-                        boolean removed = super.remove(conn);
-                        if (removed) {
-                            Bukkit.getPluginManager().callEvent(new NPCUnlinkFromPlayerEvent(
-                                    ((NPCHolder) tracker).getNPC(), ((EntityPlayer) conn).getBukkitEntity()));
-                        }
-                        return removed;
-                    }
                 });
             } catch (Throwable e) {
                 e.printStackTrace();
@@ -105,32 +86,44 @@ public class PlayerlistTrackerEntry extends EntityTrackerEntry {
     }
 
     public void updateLastPlayer(EntityPlayer lastUpdatedPlayer) {
-        if (lastUpdatedPlayer != null) {
-            Bukkit.getPluginManager().callEvent(new NPCLinkToPlayerEvent(((NPCHolder) tracker).getNPC(),
-                    lastUpdatedPlayer.getBukkitEntity(), !Bukkit.isPrimaryThread()));
+        if (lastUpdatedPlayer == null || tracker.dead || tracker.getBukkitEntity().getType() != EntityType.PLAYER)
+            return;
+        final EntityPlayer entityplayer = lastUpdatedPlayer;
+        NMS.sendTabListAdd(entityplayer.getBukkitEntity(), (Player) tracker.getBukkitEntity());
+        lastUpdatedPlayer = null;
+        NPC npc = ((NPCHolder) tracker).getNPC();
+        if (npc.data().get(NPC.Metadata.RESET_YAW_ON_SPAWN, Setting.RESET_YAW_ON_SPAWN.asBoolean())) {
+            Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(),
+                    () -> NMSImpl.sendPacket(entityplayer.getBukkitEntity(), new PacketPlayOutAnimation(tracker, 0)),
+                    1);
         }
+        if (!Setting.DISABLE_TABLIST.asBoolean())
+            return;
+        Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(),
+                () -> NMS.sendTabListRemove(entityplayer.getBukkitEntity(), (Player) tracker.getBukkitEntity()),
+                Setting.TABLIST_REMOVE_PACKET_DELAY.asTicks());
     }
 
     @Override
     public void updatePlayer(final EntityPlayer entityplayer) {
-        if (entityplayer instanceof NPCHolder)
-            return;
-
-        if (!isTracked(entityplayer) && tracker instanceof NPCHolder) {
+        if (!tracker.dead && !isTracked(entityplayer) && tracker instanceof NPCHolder) {
             NPC npc = ((NPCHolder) tracker).getNPC();
             NPCSeenByPlayerEvent event = new NPCSeenByPlayerEvent(npc, entityplayer.getBukkitEntity());
             Bukkit.getPluginManager().callEvent(event);
             if (event.isCancelled())
                 return;
         }
+        if (entityplayer instanceof NPCHolder)
+            return;
         super.updatePlayer(entityplayer);
     }
 
     private static int getE(EntityTrackerEntry entry) {
         try {
             Entity entity = getTracker(entry);
-            if (entity instanceof NPCHolder)
+            if (entity instanceof NPCHolder) {
                 return ((NPCHolder) entity).getNPC().data().get(NPC.Metadata.TRACKING_RANGE, (Integer) E.get(entry));
+            }
             return (Integer) E.get(entry);
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
@@ -160,23 +153,6 @@ public class PlayerlistTrackerEntry extends EntityTrackerEntry {
             e.printStackTrace();
         }
         return 0;
-    }
-
-    public static Set<org.bukkit.entity.Player> getSeenBy(EntityTrackerEntry tracker) {
-        if (TRACKING_MAP_GETTER != null) {
-            Map<EntityPlayer, Boolean> delegate;
-            try {
-                delegate = (Map<EntityPlayer, Boolean>) TRACKING_MAP_GETTER.invoke(tracker);
-            } catch (Throwable e) {
-                return null;
-            }
-            return delegate.keySet().stream()
-                    .map((Function<? super EntityPlayer, ? extends CraftPlayer>) EntityPlayer::getBukkitEntity)
-                    .collect(Collectors.toSet());
-        } else
-            return tracker.trackedPlayers.stream()
-                    .map((Function<? super EntityPlayer, ? extends CraftPlayer>) EntityPlayer::getBukkitEntity)
-                    .collect(Collectors.toSet());
     }
 
     private static Entity getTracker(EntityTrackerEntry entry) {

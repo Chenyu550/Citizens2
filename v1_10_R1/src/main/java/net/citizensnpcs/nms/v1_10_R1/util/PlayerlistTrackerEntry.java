@@ -1,16 +1,11 @@
 package net.citizensnpcs.nms.v1_10_R1.util;
 
 import java.lang.reflect.Field;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_10_R1.entity.CraftPlayer;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 
-import net.citizensnpcs.api.event.NPCLinkToPlayerEvent;
 import net.citizensnpcs.api.event.NPCSeenByPlayerEvent;
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.nms.v1_10_R1.entity.EntityHumanNPC;
@@ -32,6 +27,7 @@ public class PlayerlistTrackerEntry extends EntityTrackerEntry {
 
     @Override
     public void updatePlayer(final EntityPlayer entityplayer) {
+        // prevent updates to NPC "viewers"
         if (entityplayer instanceof EntityHumanNPC)
             return;
         Entity tracker = getTracker(this);
@@ -42,33 +38,30 @@ public class PlayerlistTrackerEntry extends EntityTrackerEntry {
             if (event.isCancelled())
                 return;
         }
-        super.updatePlayer(entityplayer);
-
-        if (tracker.getBukkitEntity().getType() != EntityType.PLAYER)
+        if (tracker.dead || tracker.getBukkitEntity().getType() != EntityType.PLAYER)
             return;
-
         if (entityplayer != tracker && c(entityplayer)) {
             if (!this.trackedPlayers.contains(entityplayer)
-                    && (entityplayer.x().getPlayerChunkMap().a(entityplayer, tracker.ac, tracker.ae)
-                            || tracker.attachedToPlayer)) {
-                if (tracker instanceof SkinnableEntity) {
+                    && ((entityplayer.x().getPlayerChunkMap().a(entityplayer, tracker.ac, tracker.ae))
+                            || (tracker.attachedToPlayer))) {
+                if ((tracker instanceof SkinnableEntity)) {
                     SkinnableEntity skinnable = (SkinnableEntity) tracker;
                     Player player = skinnable.getBukkitEntity();
                     if (!entityplayer.getBukkitEntity().canSee(player))
                         return;
                     skinnable.getSkinTracker().updateViewer(entityplayer.getBukkitEntity());
                 }
-                Bukkit.getPluginManager().callEvent(new NPCLinkToPlayerEvent(((NPCHolder) tracker).getNPC(),
-                        entityplayer.getBukkitEntity(), !Bukkit.isPrimaryThread()));
             }
         }
+        super.updatePlayer(entityplayer);
     }
 
     private static int getE(EntityTrackerEntry entry) {
         try {
             Entity entity = getTracker(entry);
-            if (entity instanceof NPCHolder)
+            if (entity instanceof NPCHolder) {
                 return ((NPCHolder) entity).getNPC().data().get(NPC.Metadata.TRACKING_RANGE, (Integer) E.get(entry));
+            }
             return (Integer) E.get(entry);
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
@@ -98,12 +91,6 @@ public class PlayerlistTrackerEntry extends EntityTrackerEntry {
             e.printStackTrace();
         }
         return 0;
-    }
-
-    public static Set<org.bukkit.entity.Player> getSeenBy(EntityTrackerEntry tracker) {
-        return tracker.trackedPlayers.stream()
-                .map((Function<? super EntityPlayer, ? extends CraftPlayer>) EntityPlayer::getBukkitEntity)
-                .collect(Collectors.toSet());
     }
 
     private static Entity getTracker(EntityTrackerEntry entry) {

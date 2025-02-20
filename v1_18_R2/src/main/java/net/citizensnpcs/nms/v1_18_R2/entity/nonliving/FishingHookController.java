@@ -18,7 +18,6 @@ import net.citizensnpcs.nms.v1_18_R2.util.NMSBoundingBox;
 import net.citizensnpcs.nms.v1_18_R2.util.NMSImpl;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -62,14 +61,10 @@ public class FishingHookController extends MobEntityController {
         }
 
         @Override
-        public boolean broadcastToPlayer(ServerPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.broadcastToPlayer(player));
-        }
-
-        @Override
         public double distanceToSqr(Entity entity) {
-            if (entity == getPlayerOwner())
+            if (entity == getPlayerOwner()) {
                 return 0D;
+            }
             return super.distanceToSqr(entity);
         }
 
@@ -135,10 +130,10 @@ public class FishingHookController extends MobEntityController {
         @Override
         public void tick() {
             if (npc != null) {
-                getPlayerOwner().setHealth(20F);
+                ((ServerPlayer) getPlayerOwner()).setHealth(20F);
                 getPlayerOwner().unsetRemoved();
-                getPlayerOwner().getInventory().items.set(getPlayerOwner().getInventory().selected,
-                        new ItemStack(Items.FISHING_ROD, 1));
+                ((ServerPlayer) getPlayerOwner()).getInventory().items.set(
+                        ((ServerPlayer) getPlayerOwner()).getInventory().selected, new ItemStack(Items.FISHING_ROD, 1));
                 NMSImpl.setLife(this, 0);
                 npc.update();
             } else {
@@ -148,8 +143,9 @@ public class FishingHookController extends MobEntityController {
 
         @Override
         public boolean updateFluidHeightAndDoFluidPushing(TagKey<Fluid> tagkey, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.updateFluidHeightAndDoFluidPushing(tagkey, d0);
+            }
             Vec3 old = getDeltaMovement().add(0, 0, 0);
             boolean res = super.updateFluidHeightAndDoFluidPushing(tagkey, d0);
             if (!npc.isPushableByFluids()) {

@@ -1,6 +1,7 @@
 package net.citizensnpcs.nms.v1_13_R2.entity;
 
 import java.lang.invoke.MethodHandle;
+import java.lang.reflect.Method;
 
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.v1_13_R2.CraftServer;
@@ -24,7 +25,6 @@ import net.minecraft.server.v1_13_R2.Entity;
 import net.minecraft.server.v1_13_R2.EntityBoat;
 import net.minecraft.server.v1_13_R2.EntityEnderDragon;
 import net.minecraft.server.v1_13_R2.EntityMinecartAbstract;
-import net.minecraft.server.v1_13_R2.EntityPlayer;
 import net.minecraft.server.v1_13_R2.EnumPistonReaction;
 import net.minecraft.server.v1_13_R2.FluidType;
 import net.minecraft.server.v1_13_R2.IEntitySelector;
@@ -77,19 +77,15 @@ public class EnderDragonController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public boolean b(Tag<FluidType> tag) {
-            if (npc == null)
+            if (npc == null) {
                 return super.b(tag);
+            }
             double mx = motX;
             double my = motY;
             double mz = motZ;
@@ -108,18 +104,12 @@ public class EnderDragonController extends MobEntityController {
         }
 
         @Override
-        public float cG() {
-            return NMS.getJumpPower(npc, super.cG());
-        }
-
-        @Override
         public void collide(net.minecraft.server.v1_13_R2.Entity entity) {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.collide(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
         }
 
         @Override
@@ -211,9 +201,11 @@ public class EnderDragonController extends MobEntityController {
                         this.b[i][1] = this.locY;
                     }
                 }
+
                 if (++this.c == this.b.length) {
                     this.c = 0;
                 }
+
                 this.b[this.c][0] = this.yaw;
                 this.b[this.c][1] = this.locY;
 
@@ -226,6 +218,7 @@ public class EnderDragonController extends MobEntityController {
                     children[j].lastY = vec3.y;
                     children[j].lastZ = vec3.z;
                 }
+
                 if (getBukkitEntity().getPassenger() != null) {
                     yaw = getBukkitEntity().getPassenger().getLocation().getYaw() - 180;
                 }
@@ -234,10 +227,11 @@ public class EnderDragonController extends MobEntityController {
                     motY *= 0.98;
                     motZ *= 0.98;
                     if (getBukkitEntity().getPassenger() == null) {
-                        yaw = Util.getYawFromVelocity(getBukkitEntity(), motX, motZ);
+                        yaw = Util.getDragonYaw(getBukkitEntity(), motX, motZ);
                     }
                     setPosition(locX + motX, locY + motY, locZ + motZ);
                 }
+
                 if (npc.hasTrait(EnderDragonTrait.class) && npc.getOrAddTrait(EnderDragonTrait.class).isDestroyWalls()
                         && NMSImpl.ENDERDRAGON_CHECK_WALLS != null) {
                     for (int i = 0; i < 3; i++) {
@@ -278,8 +272,9 @@ public class EnderDragonController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
 
@@ -287,6 +282,6 @@ public class EnderDragonController extends MobEntityController {
                 java.util.List.class);
         private static final MethodHandle KNOCKBACK = NMS.getMethodHandle(EntityEnderDragon.class, "a", true,
                 java.util.List.class);
-        private static final MethodHandle MOVEMENT_TICK = NMS.getMethodHandle(EntityEnderDragon.class, "k", false);
+        private static final Method MOVEMENT_TICK = NMS.getMethod(EntityEnderDragon.class, "k", false);
     }
 }

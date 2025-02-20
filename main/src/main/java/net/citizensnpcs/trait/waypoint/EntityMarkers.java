@@ -11,17 +11,17 @@ import com.google.common.collect.Maps;
 
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.event.SpawnReason;
+import net.citizensnpcs.api.npc.MemoryNPCDataStore;
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.api.npc.NPCRegistry;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.Util;
 
 /**
  * A helper class for storing a number of entity markers. By default an entity marker is a non-persisted EnderSignal.
  */
 public class EntityMarkers<T> {
     private final Map<T, Entity> markers = Maps.newHashMap();
-    private final NPCRegistry registry = CitizensAPI.getTemporaryNPCRegistry();
+    private final NPCRegistry registry = CitizensAPI.createCitizensBackedNPCRegistry(new MemoryNPCDataStore());
     private EntityType type;
 
     public EntityMarkers() {
@@ -78,7 +78,12 @@ public class EntityMarkers<T> {
         return npc.getEntity();
     }
 
-    private static final EntityType DEFAULT_ENTITY_TYPE = Util.getFallbackEntityType("SHULKER_BULLET", "LEASH_KNOT",
-            "LEASH_HITCH");
+    private static EntityType DEFAULT_ENTITY_TYPE = EntityType.ENDER_SIGNAL;
 
+    static {
+        try {
+            DEFAULT_ENTITY_TYPE = EntityType.valueOf("SHULKER_BULLET");
+        } catch (IllegalArgumentException e) {
+        }
+    }
 }

@@ -25,7 +25,6 @@ import net.minecraft.server.v1_16_R3.Entity;
 import net.minecraft.server.v1_16_R3.EntityBoat;
 import net.minecraft.server.v1_16_R3.EntityHuman;
 import net.minecraft.server.v1_16_R3.EntityMinecartAbstract;
-import net.minecraft.server.v1_16_R3.EntityPlayer;
 import net.minecraft.server.v1_16_R3.EntityPose;
 import net.minecraft.server.v1_16_R3.EntityPufferFish;
 import net.minecraft.server.v1_16_R3.EntitySize;
@@ -84,27 +83,24 @@ public class PufferFishController extends MobEntityController {
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public EntitySize a(EntityPose entitypose) {
-            if (npc == null)
+            if (npc == null) {
                 return super.a(entitypose);
+            }
             return super.a(entitypose).a(1 / s(getPuffState())).a(0.5F);
         }
 
         @Override
         public void a(float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a((float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a((float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
         @Override
         public boolean a(Tag<FluidType> tag, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.a(tag, d0);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.a(tag, d0);
             if (!npc.isPushableByFluids()) {
@@ -118,15 +114,17 @@ public class PufferFishController extends MobEntityController {
             if (npc == null || !npc.isProtected())
                 return super.b(entityhuman, enumhand);
             ItemStack itemstack = entityhuman.b(enumhand);
-            if (itemstack.getItem() == Items.WATER_BUCKET && isAlive())
+            if (itemstack.getItem() == Items.WATER_BUCKET && isAlive()) {
                 return EnumInteractionResult.FAIL;
+            }
             return super.b(entityhuman, enumhand);
         }
 
         @Override
         public boolean b(float f, float f1) {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.b(f, f1);
+            }
             return false;
         }
 
@@ -155,11 +153,6 @@ public class PufferFishController extends MobEntityController {
         @Override
         public boolean d(NBTTagCompound save) {
             return npc == null ? super.d(save) : false;
-        }
-
-        @Override
-        public float dJ() {
-            return NMS.getJumpPower(npc, super.dJ());
         }
 
         @Override
@@ -216,10 +209,11 @@ public class PufferFishController extends MobEntityController {
 
         @Override
         public boolean isClimbing() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.isClimbing();
-            else
+            } else {
                 return false;
+            }
         }
 
         @Override
@@ -259,8 +253,9 @@ public class PufferFishController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
 

@@ -45,7 +45,7 @@ public class PiglinTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "piglin (--dancing [true|false])",
-            desc = "",
+            desc = "Sets piglin modifiers.",
             modifiers = { "piglin" },
             min = 1,
             max = 1,
@@ -61,8 +61,9 @@ public class PiglinTrait extends Trait {
                     npc.getName());
             hasArg = true;
         }
-        if (!hasArg)
+        if (!hasArg) {
             throw new CommandUsageException();
+        }
     }
 
 }

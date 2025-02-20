@@ -26,14 +26,13 @@ public class CamelTrait extends Trait {
         super("cameltrait");
     }
 
-    public CamelPose getPose() {
-        return pose;
-    }
-
     @Override
     public void run() {
-        if (pose != null && npc.isSpawned() && npc.getEntity() instanceof Camel) {
-            NMS.setCamelPose(npc.getEntity(), pose);
+        if (npc.isSpawned() && npc.getEntity() instanceof Camel) {
+            Camel camel = (Camel) npc.getEntity();
+            if (pose != null) {
+                NMS.setCamelPose(npc.getEntity(), pose);
+            }
         }
     }
 
@@ -50,7 +49,7 @@ public class CamelTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "camel (--pose pose)",
-            desc = "",
+            desc = "Sets camel modifiers",
             modifiers = { "camel" },
             min = 1,
             max = 1,
@@ -65,6 +64,7 @@ public class CamelTrait extends Trait {
             trait.setPose(pose);
             output += Messaging.tr(Messages.CAMEL_POSE_SET, pose);
         }
+
         if (!output.isEmpty()) {
             Messaging.send(sender, output);
         }

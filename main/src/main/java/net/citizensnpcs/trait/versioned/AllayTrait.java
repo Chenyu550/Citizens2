@@ -38,13 +38,13 @@ public class AllayTrait extends Trait {
     }
 
     public void setDancing(boolean dance) {
-        dancing = dance;
+        this.dancing = dance;
     }
 
     @Command(
             aliases = { "npc" },
             usage = "allay (-d(ancing))",
-            desc = "",
+            desc = "Sets allay modifiers",
             modifiers = { "allay" },
             min = 1,
             max = 1,
@@ -61,7 +61,8 @@ public class AllayTrait extends Trait {
         }
         if (!output.isEmpty()) {
             Messaging.send(sender, output.trim());
-        } else
+        } else {
             throw new CommandUsageException();
+        }
     }
 }

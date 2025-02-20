@@ -3,18 +3,14 @@ package net.citizensnpcs.nms.v1_17_R1.util;
 import java.util.Random;
 
 import net.citizensnpcs.util.NMS;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.monster.Slime;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class EntityMoveControl extends MoveControl {
     protected LivingEntity entity;
@@ -73,9 +69,9 @@ public class EntityMoveControl extends MoveControl {
             f3 = -f2;
         }
         float f4 = f + f3;
-        if (f4 < 0.0F) {
+        if (f4 < 0.0F)
             f4 += 360.0F;
-        } else if (f4 > 360.0F) {
+        else if (f4 > 360.0F) {
             f4 -= 360.0F;
         }
         return f4;
@@ -90,6 +86,16 @@ public class EntityMoveControl extends MoveControl {
         this.moving = true;
     }
 
+    private boolean shouldJump() {
+        if (!(this.entity instanceof Slime)) {
+            return false;
+        }
+        if (this.jumpTicks-- <= 0) {
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public void tick() {
         this.entity.zza = 0;
@@ -99,32 +105,23 @@ public class EntityMoveControl extends MoveControl {
             double dZ = this.tz - this.entity.getZ();
             double dY = this.ty - this.entity.getY();
             double dXZ = Math.sqrt(dX * dX + dZ * dZ);
-            double dXYZ = Math.sqrt(dX * dX + dY * dY + dZ * dZ);
-            if (dXYZ < 2.500000277905201E-7)
-                // this.entity.zza = 0.0F;
+            if (Math.abs(dY) < 1.0 && dXZ < 0.01) {
+                this.entity.zza = 0.0F;
                 return;
+            }
             if (dXZ > 0.4) {
-                float f = (float) Math.toDegrees(Mth.atan2(dZ, dX)) - 90.0F;
-                entity.setYRot(rotlerp(this.entity.getYRot(), f, 90.0F));
-                NMS.setHeadYaw(entity.getBukkitEntity(), entity.getYRot());
+                float f = (float) (Mth.atan2(dZ, dX) * 57.2957763671875D) - 90.0F;
+                this.entity.setYRot(rotlerp(this.entity.getYRot(), f, 90.0F));
+                NMS.setHeadYaw(entity.getBukkitEntity(), this.entity.getYRot());
             }
-            this.entity.zza = (float) (this.speed * entity.getAttribute(Attributes.MOVEMENT_SPEED).getBaseValue());
-            this.entity.setSpeed(this.entity.zza);
-            if (entity instanceof Slime && jumpTicks-- <= 0) {
-                this.jumpTicks = new Random().nextInt(20) + 10;
-                if (((Slime) entity).isAggressive()) {
-                    this.jumpTicks /= 3;
-                }
-                ((Slime) entity).getJumpControl().jump();
-                return;
-            }
-            BlockPos pos = entity.blockPosition();
-            BlockState bs = entity.level.getBlockState(pos);
-            VoxelShape vs = bs.getCollisionShape(entity.level, pos);
-            if (dY >= entity.maxUpStep && dXZ < Math.max(1.0F, entity.getBbWidth())
-                    || !vs.isEmpty() && entity.getY() < vs.max(Axis.Y) + pos.getY() && !bs.is(BlockTags.DOORS)
-                            && !bs.is(BlockTags.FENCES)) {
-                NMS.setShouldJump(entity.getBukkitEntity());
+            AttributeInstance speed = this.entity.getAttribute(Attributes.MOVEMENT_SPEED);
+            float movement = (float) (this.speed * speed.getValue());
+            this.entity.setSpeed(movement);
+            this.entity.zza = movement;
+            if (shouldJump() || (dY >= NMS.getStepHeight(entity.getBukkitEntity()) && dXZ < 1.0D)) {
+                this.jumpTicks = jumpTicks();
+                this.jumpTicks /= 3;
+                entity.setJumping(true);
             }
         }
     }

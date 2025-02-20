@@ -17,7 +17,6 @@ import net.citizensnpcs.api.persistence.Persist;
 import net.citizensnpcs.api.trait.Trait;
 import net.citizensnpcs.api.trait.TraitName;
 import net.citizensnpcs.api.util.Messaging;
-import net.citizensnpcs.api.util.OldEnumCompat.CatTypeEnum;
 import net.citizensnpcs.util.Messages;
 import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
@@ -55,7 +54,7 @@ public class CatTrait extends Trait {
     }
 
     public void setCollarColor(DyeColor color) {
-        collarColor = color;
+        this.collarColor = color;
     }
 
     public void setLyingDown(boolean lying) {
@@ -75,21 +74,21 @@ public class CatTrait extends Trait {
 
     public void setType(Type type2) {
         if (type2 == null) {
-            type = Cat.Type.BLACK;
+            this.type = Cat.Type.BLACK;
             return;
         }
         switch (type2) {
             case WILD_OCELOT:
-                type = Cat.Type.CALICO;
+                this.type = Cat.Type.CALICO;
                 break;
             case BLACK_CAT:
-                type = Cat.Type.BLACK;
+                this.type = Cat.Type.BLACK;
                 break;
             case RED_CAT:
-                type = Cat.Type.RED;
+                this.type = Cat.Type.RED;
                 break;
             case SIAMESE_CAT:
-                type = Cat.Type.SIAMESE;
+                this.type = Cat.Type.SIAMESE;
                 break;
         }
     }
@@ -97,7 +96,7 @@ public class CatTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "cat (-s/-n/-l) --type type --ccolor collar color",
-            desc = "",
+            desc = "Sets cat modifiers",
             modifiers = { "cat" },
             min = 1,
             max = 1,
@@ -109,18 +108,22 @@ public class CatTrait extends Trait {
         CatTrait trait = npc.getOrAddTrait(CatTrait.class);
         String output = "";
         if (args.hasValueFlag("type")) {
-            if (type == null)
-                throw new CommandUsageException(Messages.INVALID_CAT_TYPE, Util.listValuesPretty(CatTypeEnum.values()));
+            if (type == null) {
+                throw new CommandUsageException(Messages.INVALID_CAT_TYPE, Util.listValuesPretty(Cat.Type.values()));
+            }
             trait.setType(type);
             output += ' ' + Messaging.tr(Messages.CAT_TYPE_SET, args.getFlag("type"));
         }
+
         if (args.hasValueFlag("ccolor")) {
-            if (ccolor == null)
+            if (ccolor == null) {
                 throw new CommandUsageException(Messages.INVALID_CAT_COLLAR_COLOR,
                         Util.listValuesPretty(DyeColor.values()));
+            }
             trait.setCollarColor(ccolor);
             output += ' ' + Messaging.tr(Messages.CAT_COLLAR_COLOR_SET, args.getFlag("ccolor"));
         }
+
         if (args.hasFlag('s')) {
             trait.setSitting(true);
             output += ' ' + Messaging.tr(Messages.CAT_STARTED_SITTING, npc.getName());
@@ -128,14 +131,17 @@ public class CatTrait extends Trait {
             trait.setSitting(false);
             output += ' ' + Messaging.tr(Messages.CAT_STOPPED_SITTING, npc.getName());
         }
+
         if (args.hasFlag('l')) {
             trait.setLyingDown(!trait.isLyingDown());
             output += ' ' + Messaging.tr(trait.isLyingDown() ? Messages.CAT_STARTED_LYING : Messages.CAT_STOPPED_LYING,
                     npc.getName());
         }
+
         if (!output.isEmpty()) {
             Messaging.send(sender, output.trim());
-        } else
+        } else {
             throw new CommandUsageException();
+        }
     }
 }

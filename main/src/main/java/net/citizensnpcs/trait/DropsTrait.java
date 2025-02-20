@@ -25,7 +25,6 @@ import net.citizensnpcs.api.gui.MenuContext;
 import net.citizensnpcs.api.gui.PercentageSlotHandler;
 import net.citizensnpcs.api.persistence.Persist;
 import net.citizensnpcs.api.trait.Trait;
-import net.citizensnpcs.api.trait.TraitEventHandler;
 import net.citizensnpcs.api.trait.TraitName;
 import net.citizensnpcs.util.Util;
 
@@ -42,8 +41,10 @@ public class DropsTrait extends Trait {
         InventoryMenu.createSelfRegistered(new DropsGUI(this)).present(sender);
     }
 
-    @TraitEventHandler(@EventHandler)
+    @EventHandler
     public void onNPCDeath(NPCDeathEvent event) {
+        if (!event.getNPC().equals(npc))
+            return;
         Random random = Util.getFastRandom();
         for (ItemDrop drop : drops) {
             if (random.nextDouble() < drop.chance) {
@@ -68,7 +69,7 @@ public class DropsTrait extends Trait {
 
         @Override
         public void initialise(MenuContext ctx) {
-            inventory = ctx.getInventory();
+            this.inventory = ctx.getInventory();
             int k = 0;
             for (int i = 1; i < 5; i += 2) {
                 for (int j = 0; j < 9; j++) {
@@ -85,7 +86,7 @@ public class DropsTrait extends Trait {
                     InventoryMenuSlot slot = ctx.getSlot(i * 9 + j);
                     slot.setItemStack(new ItemStack(Util.getFallbackMaterial("BARRIER", "FIRE")),
                             "Drop chance <e>" + chance + "%");
-                    slot.setClickHandler(new PercentageSlotHandler(pct -> {
+                    slot.setClickHandler(new PercentageSlotHandler((pct) -> {
                         if (chances.containsKey(islot)) {
                             chances.put(islot, pct / 100.0);
                         }
@@ -114,13 +115,12 @@ public class DropsTrait extends Trait {
                 for (int j = 0; j < 9; j++) {
                     int slot = i * 9 + j;
                     ItemStack stack = inventory.getItem(slot);
-                    if (stack == null || stack.getType() == Material.AIR) {
+                    if (stack == null || stack.getType() == Material.AIR)
                         continue;
-                    }
                     drops.add(new ItemDrop(stack.clone(), chances.getOrDefault(slot, 1.0)));
                 }
             }
-            trait.drops = drops;
+            this.trait.drops = drops;
         }
     }
 

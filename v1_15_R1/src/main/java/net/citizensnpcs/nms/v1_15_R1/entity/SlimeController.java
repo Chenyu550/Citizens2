@@ -24,7 +24,6 @@ import net.minecraft.server.v1_15_R1.Entity;
 import net.minecraft.server.v1_15_R1.EntityBoat;
 import net.minecraft.server.v1_15_R1.EntityHuman;
 import net.minecraft.server.v1_15_R1.EntityMinecartAbstract;
-import net.minecraft.server.v1_15_R1.EntityPlayer;
 import net.minecraft.server.v1_15_R1.EntitySlime;
 import net.minecraft.server.v1_15_R1.EntityTypes;
 import net.minecraft.server.v1_15_R1.EnumPistonReaction;
@@ -79,26 +78,23 @@ public class SlimeController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public boolean b(float f, float f1) {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.b(f, f1);
+            }
             return false;
         }
 
         @Override
         public boolean b(Tag<FluidType> tag) {
-            if (npc == null)
+            if (npc == null) {
                 return super.b(tag);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.b(tag);
             if (!npc.isPushableByFluids()) {
@@ -132,11 +128,6 @@ public class SlimeController extends MobEntityController {
         @Override
         public boolean d(NBTTagCompound save) {
             return npc == null ? super.d(save) : false;
-        }
-
-        @Override
-        public float dp() {
-            return NMS.getJumpPower(npc, super.dp());
         }
 
         @Override
@@ -191,10 +182,11 @@ public class SlimeController extends MobEntityController {
 
         @Override
         public boolean isClimbing() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.isClimbing();
-            else
+            } else {
                 return false;
+            }
         }
 
         @Override
@@ -204,8 +196,9 @@ public class SlimeController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
 

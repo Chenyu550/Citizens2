@@ -18,7 +18,6 @@ import net.minecraft.server.v1_12_R1.AxisAlignedBB;
 import net.minecraft.server.v1_12_R1.BlockPosition;
 import net.minecraft.server.v1_12_R1.DamageSource;
 import net.minecraft.server.v1_12_R1.Entity;
-import net.minecraft.server.v1_12_R1.EntityPlayer;
 import net.minecraft.server.v1_12_R1.EntitySkeleton;
 import net.minecraft.server.v1_12_R1.EnumPistonReaction;
 import net.minecraft.server.v1_12_R1.IBlockData;
@@ -62,13 +61,8 @@ public class SkeletonController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
@@ -86,11 +80,6 @@ public class SkeletonController extends MobEntityController {
         }
 
         @Override
-        public boolean bo() {
-            return npc == null ? super.bo() : npc.isPushableByFluids();
-        }
-
-        @Override
         protected SoundEffect cf() {
             return NMSImpl.getSoundEffect(npc, super.cf(), NPC.Metadata.DEATH_SOUND);
         }
@@ -100,14 +89,8 @@ public class SkeletonController extends MobEntityController {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.collide(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
-        }
-
-        @Override
-        public float ct() {
-            return NMS.getJumpPower(npc, super.ct());
         }
 
         @Override
@@ -142,9 +125,8 @@ public class SkeletonController extends MobEntityController {
 
         @Override
         public CraftEntity getBukkitEntity() {
-            if (npc != null && !(bukkitEntity instanceof NPCHolder)) {
+            if (npc != null && !(bukkitEntity instanceof NPCHolder))
                 bukkitEntity = new SkeletonNPC(this);
-            }
             return super.getBukkitEntity();
         }
 
@@ -180,10 +162,11 @@ public class SkeletonController extends MobEntityController {
 
         @Override
         public boolean m_() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.m_();
-            else
+            } else {
                 return false;
+            }
         }
 
         @Override

@@ -17,16 +17,17 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Pose;
 
 public class PlayerAnimationImpl {
-    public static void play(PlayerAnimation animation, Player bplayer, Iterable<Player> to) {
+    public static void play(PlayerAnimation animation, Player bplayer, int radius) {
         final ServerPlayer player = (ServerPlayer) NMSImpl.getHandle(bplayer);
         if (DEFAULTS.containsKey(animation)) {
-            playDefaultAnimation(player, to, DEFAULTS.get(animation));
+            playDefaultAnimation(player, radius, DEFAULTS.get(animation));
             return;
         }
         switch (animation) {
             case SNEAK:
                 player.setPose(Pose.CROUCHING);
-                sendPacketNearby(new ClientboundSetEntityDataPacket(player.getId(), player.getEntityData(), true), to);
+                sendPacketNearby(new ClientboundSetEntityDataPacket(player.getId(), player.getEntityData(), true),
+                        player, radius);
                 break;
             case START_ELYTRA:
                 player.startFallFlying();
@@ -36,38 +37,40 @@ public class PlayerAnimationImpl {
                 break;
             case START_USE_MAINHAND_ITEM:
                 player.startUsingItem(InteractionHand.MAIN_HAND);
-                sendPacketNearby(new ClientboundSetEntityDataPacket(player.getId(), player.getEntityData(), true), to);
+                sendPacketNearby(new ClientboundSetEntityDataPacket(player.getId(), player.getEntityData(), true),
+                        player, radius);
                 player.getBukkitEntity().setMetadata("citizens-using-item-remaining-ticks",
                         new FixedMetadataValue(CitizensAPI.getPlugin(), player.getUseItemRemainingTicks()));
                 break;
             case START_USE_OFFHAND_ITEM:
                 player.startUsingItem(InteractionHand.OFF_HAND);
-                sendPacketNearby(new ClientboundSetEntityDataPacket(player.getId(), player.getEntityData(), true), to);
+                sendPacketNearby(new ClientboundSetEntityDataPacket(player.getId(), player.getEntityData(), true),
+                        player, radius);
                 player.getBukkitEntity().setMetadata("citizens-using-item-remaining-ticks",
                         new FixedMetadataValue(CitizensAPI.getPlugin(), player.getUseItemRemainingTicks()));
                 break;
             case STOP_SNEAKING:
                 player.setPose(Pose.STANDING);
-                sendPacketNearby(new ClientboundSetEntityDataPacket(player.getId(), player.getEntityData(), true), to);
+                sendPacketNearby(new ClientboundSetEntityDataPacket(player.getId(), player.getEntityData(), true),
+                        player, radius);
                 break;
             case STOP_USE_ITEM:
                 player.stopUsingItem();
-                sendPacketNearby(new ClientboundSetEntityDataPacket(player.getId(), player.getEntityData(), true), to);
+                sendPacketNearby(new ClientboundSetEntityDataPacket(player.getId(), player.getEntityData(), true),
+                        player, radius);
                 break;
             default:
                 throw new UnsupportedOperationException();
         }
     }
 
-    protected static void playDefaultAnimation(ServerPlayer player, Iterable<Player> to, int code) {
+    protected static void playDefaultAnimation(ServerPlayer player, int radius, int code) {
         ClientboundAnimatePacket packet = new ClientboundAnimatePacket(player, code);
-        sendPacketNearby(packet, to);
+        sendPacketNearby(packet, player, radius);
     }
 
-    protected static void sendPacketNearby(Packet<?> packet, Iterable<Player> to) {
-        for (Player player : to) {
-            NMSImpl.sendPacket(player, packet);
-        }
+    protected static void sendPacketNearby(Packet<?> packet, ServerPlayer player, int radius) {
+        NMSImpl.sendPacketNearby(player.getBukkitEntity(), player.getBukkitEntity().getLocation(), packet, radius);
     }
 
     private static EnumMap<PlayerAnimation, Integer> DEFAULTS = Maps.newEnumMap(PlayerAnimation.class);

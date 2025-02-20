@@ -1,7 +1,5 @@
 package net.citizensnpcs.nms.v1_8_R3.entity.nonliving;
 
-import net.minecraft.server.v1_8_R3.PacketPlayOutUpdateEntityNBT;
-import net.minecraft.server.v1_8_R3.WorldServer;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.v1_8_R3.CraftServer;
 import org.bukkit.craftbukkit.v1_8_R3.entity.CraftEntity;
@@ -14,10 +12,8 @@ import net.citizensnpcs.nms.v1_8_R3.entity.MobEntityController;
 import net.citizensnpcs.nms.v1_8_R3.util.NMSBoundingBox;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_8_R3.AxisAlignedBB;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
 import net.minecraft.server.v1_8_R3.EntityTNTPrimed;
 import net.minecraft.server.v1_8_R3.NBTTagCompound;
 import net.minecraft.server.v1_8_R3.World;
@@ -42,22 +38,11 @@ public class TNTPrimedController extends MobEntityController {
         public EntityTNTPrimedNPC(World world, NPC npc) {
             super(world);
             this.npc = (CitizensNPC) npc;
-            this.fuseTicks = Integer.MAX_VALUE;
         }
 
         @Override
         public void a(AxisAlignedBB bb) {
             super.a(NMSBoundingBox.makeBB(npc, bb));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
-        public boolean aL() {
-            return npc == null ? super.aL() : npc.isPushableByFluids();
         }
 
         @Override
@@ -96,16 +81,9 @@ public class TNTPrimedController extends MobEntityController {
             return npc;
         }
 
-        private int fuseRenewalDelay = 9;
         @Override
         public void t_() {
             if (npc != null) {
-                if (fuseRenewalDelay-- <= 0) {
-                    final NBTTagCompound nbtTagCompound = new NBTTagCompound();
-                    e(nbtTagCompound); // dump the entity NBT so let client update it as we don't have DataWatcher for fuse in this MC version
-                    ((WorldServer) getWorld()).getTracker().a(this, new PacketPlayOutUpdateEntityNBT(getId(), nbtTagCompound));
-                    fuseRenewalDelay = 9;
-                }
                 npc.update();
             } else {
                 super.t_();

@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -28,8 +27,9 @@ public class CustomEntityRegistry extends RegistryMaterials implements Supplier<
 
     @Override
     public int a(Object key) {
-        if (entityIds.containsKey(key))
+        if (entityIds.containsKey(key)) {
             return entityIds.get(key);
+        }
         return wrapped.a((EntityTypes) key);
     }
 
@@ -39,29 +39,15 @@ public class CustomEntityRegistry extends RegistryMaterials implements Supplier<
     }
 
     @Override
-    public MinecraftKey b() {
-        return wrapped.b();
-    }
-
-    @Override
     public boolean c(MinecraftKey paramK) {
         return wrapped.c(paramK);
     }
 
-    @Override
-    public boolean d() {
-        return wrapped.d();
-    }
-
-    @Override
-    public Stream<EntityTypes<?>> f() {
-        return wrapped.f();
-    }
-
     public EntityTypes findType(Class<?> search) {
         for (Object type : wrapped) {
-            if (((EntityTypes) type).c() == search)
+            if (((EntityTypes) type).c() == search) {
                 return (EntityTypes) type;
+            }
         }
         return null;
     }
@@ -73,15 +59,17 @@ public class CustomEntityRegistry extends RegistryMaterials implements Supplier<
 
     @Override
     public EntityTypes get(MinecraftKey key) {
-        if (entities.containsKey(key))
+        if (entities.containsKey(key)) {
             return entities.get(key);
+        }
         return wrapped.get(key);
     }
 
     @Override
     public MinecraftKey getKey(Object value) {
-        if (entityClasses.containsKey(value))
+        if (entityClasses.containsKey(value)) {
             return entityClasses.get(value);
+        }
         return wrapped.getKey((EntityTypes) value);
     }
 

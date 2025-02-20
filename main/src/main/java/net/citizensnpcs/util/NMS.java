@@ -6,9 +6,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -18,12 +16,10 @@ import java.util.stream.Collectors;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Registry;
 import org.bukkit.Sound;
-import org.bukkit.attribute.Attributable;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.command.BlockCommandSender;
 import org.bukkit.entity.Enderman;
 import org.bukkit.entity.Entity;
@@ -37,37 +33,33 @@ import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.scoreboard.Team;
 import org.bukkit.util.Vector;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.GameProfileRepository;
-import com.mojang.authlib.ProfileLookupCallback;
 
-import net.citizensnpcs.api.CitizensAPI;
+import net.citizensnpcs.Settings.Setting;
 import net.citizensnpcs.api.ai.NavigatorParameters;
 import net.citizensnpcs.api.astar.pathfinder.SwimmingExaminer;
 import net.citizensnpcs.api.command.CommandManager;
 import net.citizensnpcs.api.command.exception.CommandException;
 import net.citizensnpcs.api.event.NPCKnockbackEvent;
+import net.citizensnpcs.api.jnbt.CompoundTag;
 import net.citizensnpcs.api.npc.BlockBreaker;
 import net.citizensnpcs.api.npc.BlockBreaker.BlockBreakerConfiguration;
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.api.util.BoundingBox;
 import net.citizensnpcs.api.util.EntityDim;
 import net.citizensnpcs.api.util.Messaging;
-import net.citizensnpcs.api.util.SpigotUtil.InventoryViewAPI;
 import net.citizensnpcs.npc.ai.MCNavigationStrategy.MCNavigator;
 import net.citizensnpcs.npc.ai.MCTargetStrategy.TargetNavigator;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.trait.EntityPoseTrait.EntityPose;
+import net.citizensnpcs.npc.skin.SkinnableEntity;
 import net.citizensnpcs.trait.MirrorTrait;
 import net.citizensnpcs.trait.PacketNPC;
-import net.citizensnpcs.trait.versioned.ArmadilloTrait.ArmadilloState;
 import net.citizensnpcs.trait.versioned.CamelTrait.CamelPose;
 import net.citizensnpcs.trait.versioned.SnifferTrait.SnifferState;
 import net.citizensnpcs.util.EntityPacketTracker.PacketAggregator;
@@ -75,11 +67,6 @@ import net.citizensnpcs.util.EntityPacketTracker.PacketAggregator;
 public class NMS {
     private NMS() {
         // util class
-    }
-
-    public enum MinecraftNavigationType {
-        GROUND,
-        WALL_CLIMB;
     }
 
     public static void activate(Entity entity) {
@@ -127,11 +114,15 @@ public class NMS {
             Consumer<NPCKnockbackEvent> cb) {
         if (npc.getEntity() == null)
             return;
-        if (SUPPORTS_ATTRIBUTABLE && npc.getEntity() instanceof Attributable) {
-            AttributeInstance attribute = ((Attributable) npc.getEntity()).getAttribute(
-                    Util.getRegistryValue(Registry.ATTRIBUTE, "generic.knockback_resistance", "knockback_resistance"));
-            if (attribute != null) {
-                strength *= 1 - attribute.getValue();
+        if (SUPPORT_KNOCKBACK_RESISTANCE && npc.getEntity() instanceof LivingEntity) {
+            try {
+                AttributeInstance attribute = ((LivingEntity) npc.getEntity())
+                        .getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE);
+                if (attribute != null) {
+                    strength *= 1 - attribute.getValue();
+                }
+            } catch (Throwable t) {
+                SUPPORT_KNOCKBACK_RESISTANCE = false;
             }
         }
         Vector vector = npc.getEntity().getVelocity();
@@ -145,6 +136,7 @@ public class NMS {
         if (!PAPER_KNOCKBACK_EVENT_EXISTS) {
             event.getKnockbackVector().multiply(new Vector(-1, 0, -1));
         }
+
         if (!event.isCancelled()) {
             cb.accept(event);
         }
@@ -154,30 +146,10 @@ public class NMS {
         BRIDGE.cancelMoveDestination(entity);
     }
 
-    public static boolean canNavigateTo(Entity entity, Location dest, NavigatorParameters params) {
-        return BRIDGE.canNavigateTo(entity, dest, params);
-    }
-
-    public static void clearCustomNBT(ItemMeta meta) {
-        if (CUSTOM_NBT_TAG_MISSING)
-            return;
-        if (CUSTOM_NBT_TAG == null) {
-            Class<?> clazz = meta.getClass();
-            while (!clazz.getName().contains("CraftMetaItem")) {
-                clazz = clazz.getSuperclass();
-            }
-            CUSTOM_NBT_TAG = getSetter(clazz, "customTag");
-            if (CUSTOM_NBT_TAG == null) {
-                CUSTOM_NBT_TAG_MISSING = true;
-                return;
-            }
-        }
-        try {
-            CUSTOM_NBT_TAG.invoke(meta, null);
-        } catch (Throwable e) {
-            e.printStackTrace();
-        }
-    }
+    /*
+     * Yggdrasil's default implementation of this method silently fails instead of throwing
+     * an Exception like it should.
+     */
 
     public static Iterable<Object> createBundlePacket(List<Object> packets) {
         return BRIDGE.createBundlePacket(packets);
@@ -191,36 +163,8 @@ public class NMS {
         return BRIDGE.createPacketTracker(entity, agg);
     }
 
-    /*
-     * Yggdrasil's default implementation of this method silently fails instead of throwing
-     * an Exception like it should.
-     */
     public static GameProfile fillProfileProperties(GameProfile profile, boolean requireSecure) throws Throwable {
         return BRIDGE.fillProfileProperties(profile, requireSecure);
-    }
-
-    public static void findProfilesByNames(String[] names, ProfileLookupCallback cb) {
-        if (SUPPORTS_FIND_PROFILES_BY_NAME) {
-            BRIDGE.getGameProfileRepository().findProfilesByNames(names, cb);
-            return;
-        }
-        if (FIND_PROFILES_BY_NAMES == null) {
-            try {
-                Class<?> agentClass = Class.forName("com.mojang.authlib.Agent");
-                Object minecraftAgent = agentClass.getField("MINECRAFT").get(null);
-                MethodHandle mh = getMethodHandle(BRIDGE.getGameProfileRepository().getClass(), "findProfilesByNames",
-                        false, String[].class, agentClass, ProfileLookupCallback.class);
-                FIND_PROFILES_BY_NAMES = MethodHandles.insertArguments(mh, 2, minecraftAgent);
-            } catch (Exception e) {
-                FIND_PROFILES_BY_NAMES = getMethodHandle(BRIDGE.getGameProfileRepository().getClass(),
-                        "findProfilesByNames", false, String[].class, ProfileLookupCallback.class);
-            }
-        }
-        try {
-            FIND_PROFILES_BY_NAMES.invoke(BRIDGE.getGameProfileRepository(), names, cb);
-        } catch (Throwable e) {
-            e.printStackTrace();
-        }
     }
 
     public static BlockBreaker getBlockBreaker(Entity entity, Block targetBlock, BlockBreakerConfiguration config) {
@@ -235,23 +179,11 @@ public class NMS {
         return BRIDGE.getBoundingBox(handle);
     }
 
-    public static double getBoundingBoxHeight(Entity entity) {
-        return BRIDGE.getBoundingBoxHeight(entity);
-    }
-
     public static BoundingBox getCollisionBox(Block block) {
-        if (block.getType() == Material.AIR)
+        if (block.getType() == Material.AIR) {
             return BoundingBox.EMPTY;
-
+        }
         return BRIDGE.getCollisionBox(block).add(block.getX(), block.getY(), block.getZ());
-    }
-
-    public static BoundingBox getCollisionBox(BlockData blockdata) {
-        return BRIDGE.getCollisionBox(blockdata);
-    }
-
-    public static Map<String, Object> getComponentMap(ItemStack item) {
-        return BRIDGE.getComponentMap(item);
     }
 
     public static Location getDestination(Entity entity) {
@@ -259,8 +191,10 @@ public class NMS {
     }
 
     public static int getFallDistance(NPC npc, int def) {
-        return npc == null || npc.getNavigator().getLocalParameters().fallDistance() == -1 ? def
-                : npc.getNavigator().getLocalParameters().fallDistance();
+        return npc == null ? def
+                : npc.data().get(NPC.Metadata.PATHFINDER_FALL_DISTANCE,
+                        Setting.PATHFINDER_FALL_DISTANCE.asInt() != -1 ? Setting.PATHFINDER_FALL_DISTANCE.asInt()
+                                : def);
     }
 
     public static Field getField(Class<?> clazz, String field) {
@@ -277,7 +211,7 @@ public class NMS {
             return f;
         } catch (Exception e) {
             if (log) {
-                Messaging.severeTr(Messages.ERROR_GETTING_FIELD, field, e.getLocalizedMessage());
+                Messaging.logTr(Messages.ERROR_GETTING_FIELD, field, e.getLocalizedMessage());
                 if (Messaging.isDebugging()) {
                     e.printStackTrace();
                 }
@@ -289,9 +223,8 @@ public class NMS {
     private static List<Field> getFieldsMatchingType(Class<?> clazz, Class<?> type, boolean allowStatic) {
         List<Field> found = Lists.newArrayList();
         for (Field field : clazz.getDeclaredFields()) {
-            if (allowStatic ^ Modifier.isStatic(field.getModifiers())) {
+            if (allowStatic ^ Modifier.isStatic(field.getModifiers()))
                 continue;
-            }
             if (field.getType() == type) {
                 found.add(field);
                 field.setAccessible(true);
@@ -303,7 +236,7 @@ public class NMS {
     public static List<MethodHandle> getFieldsOfType(Class<?> clazz, Class<?> type) {
         List<Field> found = getFieldsMatchingType(clazz, type, false);
         if (found.isEmpty())
-            return Collections.emptyList();
+            return null;
         return found.stream().map(f -> {
             try {
                 return LOOKUP.unreflectGetter(f);
@@ -326,16 +259,13 @@ public class NMS {
         if (field == null)
             return null;
         if (MODIFIERS_FIELD == null) {
-            if (UNSAFE_STATIC_FIELD_OFFSET == null) {
-                Object UNSAFE;
+            if (UNSAFE == null) {
                 try {
                     UNSAFE = NMS.getField(Class.forName("sun.misc.Unsafe"), "theUnsafe").get(null);
                 } catch (Exception e) {
+                    e.printStackTrace();
                     if (log) {
-                        Messaging.severeTr(Messages.ERROR_GETTING_FIELD, field.getName(), e.getLocalizedMessage());
-                        if (Messaging.isDebugging()) {
-                            e.printStackTrace();
-                        }
+                        Messaging.logTr(Messages.ERROR_GETTING_FIELD, field.getName(), e.getLocalizedMessage());
                     }
                     return null;
                 }
@@ -368,11 +298,9 @@ public class NMS {
                 return isStatic ? MethodHandles.insertArguments(mh, 0, field.getDeclaringClass(), offset)
                         : MethodHandles.insertArguments(mh, 1, offset);
             } catch (Throwable t) {
+                t.printStackTrace();
                 if (log) {
-                    Messaging.severeTr(Messages.ERROR_GETTING_FIELD, field.getName(), t.getLocalizedMessage());
-                    if (Messaging.isDebugging()) {
-                        t.printStackTrace();
-                    }
+                    Messaging.logTr(Messages.ERROR_GETTING_FIELD, field.getName(), t.getLocalizedMessage());
                 }
                 return null;
             }
@@ -381,7 +309,7 @@ public class NMS {
             MODIFIERS_FIELD.setInt(field, field.getModifiers() & ~Modifier.FINAL);
         } catch (Exception e) {
             if (log) {
-                Messaging.severeTr(Messages.ERROR_GETTING_FIELD, field.getName(), e.getLocalizedMessage());
+                Messaging.logTr(Messages.ERROR_GETTING_FIELD, field.getName(), e.getLocalizedMessage());
                 if (Messaging.isDebugging()) {
                     e.printStackTrace();
                 }
@@ -392,7 +320,7 @@ public class NMS {
             return LOOKUP.unreflectSetter(field);
         } catch (Exception e) {
             if (log) {
-                Messaging.severeTr(Messages.ERROR_GETTING_FIELD, field.getName(), e.getLocalizedMessage());
+                Messaging.logTr(Messages.ERROR_GETTING_FIELD, field.getName(), e.getLocalizedMessage());
                 if (Messaging.isDebugging()) {
                     e.printStackTrace();
                 }
@@ -408,10 +336,7 @@ public class NMS {
                 return null;
             return getFinalSetter(found.get(0), true);
         } catch (Exception e) {
-            Messaging.severeTr(Messages.ERROR_GETTING_FIELD, type, e.getLocalizedMessage());
-            if (Messaging.isDebugging()) {
-                e.printStackTrace();
-            }
+            Messaging.logTr(Messages.ERROR_GETTING_FIELD, type, e.getLocalizedMessage());
         }
         return null;
     }
@@ -423,10 +348,7 @@ public class NMS {
                 return null;
             return LOOKUP.unreflectGetter(found.get(0));
         } catch (Exception e) {
-            Messaging.severeTr(Messages.ERROR_GETTING_FIELD, type, e.getLocalizedMessage());
-            if (Messaging.isDebugging()) {
-                e.printStackTrace();
-            }
+            Messaging.logTr(Messages.ERROR_GETTING_FIELD, type, e.getLocalizedMessage());
         }
         return null;
     }
@@ -442,16 +364,14 @@ public class NMS {
         try {
             Method first = null;
             for (Method method : clazz.getDeclaredMethods()) {
-                if (returnType != null && !returnType.equals(method.getReturnType())) {
+                if (returnType != null && !returnType.equals(method.getReturnType()))
                     continue;
-                }
                 Class<?>[] paramTypes = method.getParameterTypes();
                 if (paramTypes.length == params.length) {
                     first = method;
                     for (int i = 0; i < paramTypes.length; i++) {
                         if (paramTypes[i] != params[i]) {
                             first = null;
-                            break;
                         }
                     }
                     if (first != null) {
@@ -465,7 +385,7 @@ public class NMS {
             return LOOKUP.unreflect(first);
         } catch (Exception e) {
             if (log) {
-                Messaging.severeTr(Messages.ERROR_GETTING_METHOD, e.getLocalizedMessage());
+                Messaging.logTr(Messages.ERROR_GETTING_METHOD, e.getLocalizedMessage());
                 if (Messaging.isDebugging()) {
                     e.printStackTrace();
                 }
@@ -481,7 +401,7 @@ public class NMS {
                 return null;
             return LOOKUP.unreflectSetter(found.get(0));
         } catch (Exception e) {
-            Messaging.severeTr(Messages.ERROR_GETTING_FIELD, type, e.getLocalizedMessage());
+            Messaging.logTr(Messages.ERROR_GETTING_FIELD, type, e.getLocalizedMessage());
         }
         return null;
     }
@@ -493,22 +413,13 @@ public class NMS {
                 return null;
             return LOOKUP.unreflectGetter(found.get(0));
         } catch (Exception e) {
-            Messaging.severeTr(Messages.ERROR_GETTING_FIELD, type, e.getLocalizedMessage());
+            Messaging.logTr(Messages.ERROR_GETTING_FIELD, type, e.getLocalizedMessage());
         }
         return null;
     }
 
-    public static <T> T getFirstStaticObject(Class<?> clazz, Class<?> type) {
-        try {
-            return (T) getFirstStaticGetter(clazz, type).invoke();
-        } catch (Throwable e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public static float getForwardBackwardMovement(org.bukkit.entity.Entity bukkitEntity) {
-        return BRIDGE.getForwardBackwardMovement(bukkitEntity);
+    public static GameProfileRepository getGameProfileRepository() {
+        return BRIDGE.getGameProfileRepository();
     }
 
     public static MethodHandle getGetter(Class<?> clazz, String name) {
@@ -520,7 +431,7 @@ public class NMS {
             return LOOKUP.unreflectGetter(getField(clazz, name, log));
         } catch (Exception e) {
             if (log) {
-                Messaging.severeTr(Messages.ERROR_GETTING_FIELD, name, e.getLocalizedMessage());
+                Messaging.logTr(Messages.ERROR_GETTING_FIELD, name, e.getLocalizedMessage());
                 if (Messaging.isDebugging()) {
                     e.printStackTrace();
                 }
@@ -533,25 +444,40 @@ public class NMS {
         return BRIDGE.getHeadYaw(entity);
     }
 
-    public static float getJumpPower(NPC npc, float original) {
-        if (npc == null)
-            return original;
-        if (npc.data().has(NPC.Metadata.JUMP_POWER_SUPPLIER))
-            return npc.data().<Function<NPC, Float>> get(NPC.Metadata.JUMP_POWER_SUPPLIER).apply(npc);
+    public static double getHeight(Entity entity) {
+        return BRIDGE.getHeight(entity);
+    }
 
-        return original;
+    public static float getHorizontalMovement(org.bukkit.entity.Entity bukkitEntity) {
+        return BRIDGE.getHorizontalMovement(bukkitEntity);
+    }
+
+    public static Method getMethod(Class<?> clazz, String method, boolean log, Class<?>... params) {
+        if (clazz == null)
+            return null;
+        Method f = null;
+        try {
+            f = clazz.getDeclaredMethod(method, params);
+            f.setAccessible(true);
+        } catch (Exception e) {
+            if (log) {
+                Messaging.logTr(Messages.ERROR_GETTING_METHOD, method, e.getLocalizedMessage());
+                if (Messaging.isDebugging()) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return f;
     }
 
     public static MethodHandle getMethodHandle(Class<?> clazz, String method, boolean log, Class<?>... params) {
         if (clazz == null)
             return null;
         try {
-            Method m = clazz.getDeclaredMethod(method, params);
-            m.setAccessible(true);
-            return LOOKUP.unreflect(m);
+            return LOOKUP.unreflect(getMethod(clazz, method, log, params));
         } catch (Exception e) {
             if (log) {
-                Messaging.severeTr(Messages.ERROR_GETTING_METHOD, method, e.getLocalizedMessage());
+                Messaging.logTr(Messages.ERROR_GETTING_METHOD, method, e.getLocalizedMessage());
                 if (Messaging.isDebugging()) {
                     e.printStackTrace();
                 }
@@ -560,29 +486,25 @@ public class NMS {
         return null;
     }
 
-    private static Collection<Player> getNearbyPlayers(Entity from) {
-        return getNearbyPlayers(from, from.getLocation(), 64);
+    public static CompoundTag getNBT(ItemStack item) {
+        return BRIDGE.getNBT(item);
     }
 
-    private static Collection<Player> getNearbyPlayers(Entity from, Location location, double radius) {
-        return Lists.newArrayList(CitizensAPI.getLocationLookup().getNearbyVisiblePlayers(from, location, radius));
+    public static NPC getNPC(Entity entity) {
+        return BRIDGE.getNPC(entity);
     }
 
     public static EntityPacketTracker getPacketTracker(Entity entity) {
         if (entity == null)
             return null;
         if (entity instanceof NPCHolder) {
-            PacketNPC trait = ((NPCHolder) entity).getNPC().getTraitNullable(PacketNPC.class);
-            if (trait != null)
-                return trait.getPacketTracker();
+            NPC npc = ((NPCHolder) entity).getNPC();
+            if (npc.hasTrait(PacketNPC.class))
+                return npc.getOrAddTrait(PacketNPC.class).getPacketTracker();
         }
         if (!entity.isValid())
             return null;
         return BRIDGE.getPacketTracker(entity);
-    }
-
-    public static EntityPacketTracker getPacketTrackerDirectly(Entity entity) {
-        return entity == null ? null : BRIDGE.getPacketTracker(entity);
     }
 
     public static List<org.bukkit.entity.Entity> getPassengers(org.bukkit.entity.Entity entity) {
@@ -597,10 +519,6 @@ public class NMS {
         return BRIDGE.getProfile(meta);
     }
 
-    public static float getRidingHeightOffset(Entity entity, Entity mount) {
-        return BRIDGE.getRidingHeightOffset(entity, mount);
-    }
-
     public static MethodHandle getSetter(Class<?> clazz, String name) {
         return getSetter(clazz, name, true);
     }
@@ -610,27 +528,13 @@ public class NMS {
             return LOOKUP.unreflectSetter(getField(clazz, name, log));
         } catch (Exception e) {
             if (log) {
-                Messaging.severeTr(Messages.ERROR_GETTING_FIELD, name, e.getLocalizedMessage());
+                Messaging.logTr(Messages.ERROR_GETTING_FIELD, name, e.getLocalizedMessage());
                 if (Messaging.isDebugging()) {
                     e.printStackTrace();
                 }
             }
         }
         return null;
-    }
-
-    public static Collection<MethodHandle> getSettersOfType(Class<?> clazz, Class<?> fieldType) {
-        List<Field> found = getFieldsMatchingType(clazz, fieldType, false);
-        if (found.isEmpty())
-            return Collections.emptyList();
-        return found.stream().map(f -> {
-            try {
-                return LOOKUP.unreflectSetter(f);
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
-            return null;
-        }).filter(f -> f != null).collect(Collectors.toList());
     }
 
     public static String getSoundPath(Sound flag) throws CommandException {
@@ -643,15 +547,6 @@ public class NMS {
 
     public static float getSpeedFor(NPC npc) {
         return BRIDGE.getSpeedFor(npc);
-    }
-
-    public static <T> T getStaticObject(Class<?> clazz, String name) {
-        try {
-            return (T) getGetter(clazz, name).invoke();
-        } catch (Throwable e) {
-            e.printStackTrace();
-        }
-        return null;
     }
 
     public static float getStepHeight(org.bukkit.entity.Entity entity) {
@@ -675,16 +570,12 @@ public class NMS {
         return BRIDGE.getVehicle(entity);
     }
 
-    public static Collection<Player> getViewingPlayers(org.bukkit.entity.Entity entity) {
-        return BRIDGE.getViewingPlayers(entity);
+    public static float getVerticalMovement(org.bukkit.entity.Entity bukkitEntity) {
+        return BRIDGE.getVerticalMovement(bukkitEntity);
     }
 
     public static double getWidth(Entity entity) {
         return BRIDGE.getWidth(entity);
-    }
-
-    public static float getXZMovement(org.bukkit.entity.Entity bukkitEntity) {
-        return BRIDGE.getXZMovement(bukkitEntity);
     }
 
     public static float getYaw(Entity entity) {
@@ -693,9 +584,11 @@ public class NMS {
 
     public static void giveReflectiveAccess(Class<?> from, Class<?> to) {
         try {
-            Class<?> module = Class.forName("java.lang.Module");
-            Method GET_MODULE = Class.class.getMethod("getModule");
-            Method ADD_OPENS = module.getMethod("addOpens", String.class, module);
+            if (GET_MODULE == null) {
+                Class<?> module = Class.forName("java.lang.Module");
+                GET_MODULE = Class.class.getMethod("getModule");
+                ADD_OPENS = module.getMethod("addOpens", String.class, module);
+            }
             ADD_OPENS.invoke(GET_MODULE.invoke(from), from.getPackage().getName(), GET_MODULE.invoke(to));
         } catch (Exception e) {
         }
@@ -717,10 +610,6 @@ public class NMS {
         return BRIDGE.isOnGround(entity);
     }
 
-    public static boolean isSneaking(Entity entity) {
-        return BRIDGE.isSneaking(entity);
-    }
-
     public static boolean isSolid(Block in) {
         return BRIDGE.isSolid(in);
     }
@@ -736,12 +625,12 @@ public class NMS {
     public static void loadBridge(String rev) throws Exception {
         Class<?> entity = null;
         try {
-            entity = Class.forName("net.minecraft.server." + rev + ".Entity");
+            entity = Class.forName("net.minecraft.server.v" + rev + ".Entity");
         } catch (ClassNotFoundException ex) {
             entity = Class.forName("net.minecraft.world.entity.Entity");
         }
         giveReflectiveAccess(entity, NMS.class);
-        BRIDGE = (NMSBridge) Class.forName("net.citizensnpcs.nms." + rev + ".util.NMSImpl").getConstructor()
+        BRIDGE = (NMSBridge) Class.forName("net.citizensnpcs.nms.v" + rev + ".util.NMSImpl").getConstructor()
                 .newInstance();
     }
 
@@ -757,10 +646,6 @@ public class NMS {
         BRIDGE.look(bhandle, btarget);
     }
 
-    public static void markPoseDirty(Entity tracker) {
-        BRIDGE.markPoseDirty(tracker);
-    }
-
     public static void mount(org.bukkit.entity.Entity entity, org.bukkit.entity.Entity passenger) {
         BRIDGE.mount(entity, passenger);
     }
@@ -774,24 +659,24 @@ public class NMS {
     }
 
     public static void openHorseScreen(Tameable horse, Player equipper) {
-        BRIDGE.openHorseInventory(horse, equipper);
+        BRIDGE.openHorseScreen(horse, equipper);
     }
 
-    public static void playAnimation(PlayerAnimation animation, Player player, Iterable<Player> to) {
-        BRIDGE.playAnimation(animation, player, to);
+    public static void playAnimation(PlayerAnimation animation, Player player, int radius) {
+        BRIDGE.playAnimation(animation, player, radius);
     }
 
     public static Runnable playerTicker(Player entity) {
-        return BRIDGE.playerTicker(entity instanceof NPCHolder ? ((NPCHolder) entity).getNPC() : null, entity);
+        Runnable tick = BRIDGE.playerTicker(entity);
+        return () -> {
+            if (entity.isValid()) {
+                tick.run();
+            }
+        };
     }
 
-    public static void positionInteractionText(Player player, Entity interaction, Entity mount, double height) {
-        BRIDGE.positionInteractionText(player, interaction, mount, height);
-    }
-
-    public static void registerEntityClass(Class<?> clazz, Object type) {
-        // TODO: is this used outside of Citizens? could remove this abstraction
-        BRIDGE.registerEntityClass(clazz, type);
+    public static void registerEntityClass(Class<?> clazz) {
+        BRIDGE.registerEntityClass(clazz);
     }
 
     public static void remove(Entity entity) {
@@ -814,35 +699,20 @@ public class NMS {
         BRIDGE.replaceTrackerEntry(entity);
     }
 
-    public static void sendPositionUpdate(Entity from, Collection<Player> to, boolean position) {
-        sendPositionUpdate(from, to, position, NMS.getYaw(from), from.getLocation().getPitch(), NMS.getHeadYaw(from));
-    }
-
-    public static void sendPositionUpdate(Entity from, Collection<Player> to, boolean position, Float bodyYaw,
-            Float pitch, Float headYaw) {
-        BRIDGE.sendPositionUpdate(from, to, position, bodyYaw, pitch, headYaw);
-    }
-
-    public static void sendPositionUpdateNearby(Entity from, boolean position) {
-        sendPositionUpdate(from, getNearbyPlayers(from), position, NMS.getYaw(from), from.getLocation().getPitch(),
-                NMS.getHeadYaw(from));
-    }
-
-    public static void sendPositionUpdateNearby(Entity from, boolean position, Float bodyYaw, Float pitch,
-            Float headYaw) {
-        sendPositionUpdate(from, getNearbyPlayers(from), position, bodyYaw, pitch, headYaw);
+    public static void sendPositionUpdate(Entity from, boolean position, Float bodyYaw, Float pitch, Float headYaw) {
+        BRIDGE.sendPositionUpdate(from, position, bodyYaw, pitch, headYaw);
     }
 
     public static boolean sendTabListAdd(Player recipient, Player listPlayer) {
         return BRIDGE.sendTabListAdd(recipient, listPlayer);
     }
 
-    public static void sendTabListRemove(Player recipient, Collection<Player> players) {
-        BRIDGE.sendTabListRemove(recipient, players);
+    public static void sendTabListRemove(Player recipient, Collection<? extends SkinnableEntity> skinnableNPCs) {
+        BRIDGE.sendTabListRemove(recipient, skinnableNPCs);
     }
 
     public static void sendTabListRemove(Player recipient, Player listPlayer) {
-        sendTabListRemove(recipient, ImmutableList.of(listPlayer));
+        BRIDGE.sendTabListRemove(recipient, listPlayer);
     }
 
     public static void sendTeamPacket(Player recipient, Team team, int mode) {
@@ -855,10 +725,6 @@ public class NMS {
 
     public static void setAllayDancing(Entity entity, boolean dancing) {
         BRIDGE.setAllayDancing(entity, dancing);
-    }
-
-    public static void setArmadilloState(Entity entity, ArmadilloState state) {
-        BRIDGE.setArmadilloState(entity, state);
     }
 
     public static void setBodyYaw(Entity entity, float yaw) {
@@ -889,10 +755,6 @@ public class NMS {
         BRIDGE.setEndermanAngry(enderman, angry);
     }
 
-    public static void setHeadAndBodyYaw(org.bukkit.entity.Entity entity, float yaw) {
-        BRIDGE.setHeadAndBodyYaw(entity, yaw);
-    }
-
     public static void setHeadYaw(org.bukkit.entity.Entity entity, float yaw) {
         BRIDGE.setHeadYaw(entity, yaw);
     }
@@ -914,16 +776,8 @@ public class NMS {
         BRIDGE.setNavigationTarget(handle, target, speed);
     }
 
-    public static void setNavigationType(Entity entity, MinecraftNavigationType type) {
-        BRIDGE.setNavigationType(entity, type);
-    }
-
     public static void setNoGravity(Entity entity, boolean nogravity) {
         BRIDGE.setNoGravity(entity, nogravity);
-    }
-
-    public static void setOpWithoutSaving(Player player, boolean op) {
-        BRIDGE.setOpWithoutSaving(player, op);
     }
 
     public static void setPandaSitting(Entity entity, boolean sitting) {
@@ -931,9 +785,9 @@ public class NMS {
     }
 
     public static void setPeekShulker(org.bukkit.entity.Entity entity, int peek) {
-        if (!entity.getType().name().equals("SHULKER"))
+        if (!entity.getType().name().equals("SHULKER")) {
             throw new IllegalArgumentException("entity must be a shulker");
-
+        }
         BRIDGE.setPeekShulker(entity, peek);
     }
 
@@ -947,10 +801,6 @@ public class NMS {
 
     public static void setPolarBearRearing(Entity entity, boolean rearing) {
         BRIDGE.setPolarBearRearing(entity, rearing);
-    }
-
-    public static void setPose(Entity entity, EntityPose pose) {
-        BRIDGE.setPose(entity, pose);
     }
 
     public static void setProfile(SkullMeta meta, GameProfile profile) {
@@ -985,24 +835,12 @@ public class NMS {
         BRIDGE.setTeamNameTagVisible(team, visible);
     }
 
-    public static void setTextDisplayComponent(Entity entity, Object component) {
-        BRIDGE.setTextDisplayComponent(entity, component);
-    }
-
-    public static void setVerticalMovement(Entity bukkitEntity, double d) {
+    public static void setVerticalMovement(org.bukkit.entity.Entity bukkitEntity, double d) {
         BRIDGE.setVerticalMovement(bukkitEntity, d);
     }
 
-    public static void setWardenPose(Entity entity, Object pose) {
-        BRIDGE.setWardenPose(entity, pose);
-    }
-
-    public static void setWitherInvulnerableTicks(Wither wither, int ticks) {
-        BRIDGE.setWitherInvulnerableTicks(wither, ticks);
-    }
-
-    public static boolean shouldBroadcastToPlayer(NPC npc, Supplier<Boolean> defaultResponse) {
-        return npc != null && npc.data().has(NPC.Metadata.NPC_SPAWNING_IN_PROGRESS) ? false : defaultResponse.get();
+    public static void setWitherInvulnerable(Wither wither, boolean charged) {
+        BRIDGE.setWitherCharged(wither, charged);
     }
 
     public static boolean shouldJump(org.bukkit.entity.Entity entity) {
@@ -1013,7 +851,6 @@ public class NMS {
         if (BRIDGE != null) {
             BRIDGE.shutdown();
             BRIDGE = null;
-            FIND_PROFILES_BY_NAMES = null;
         }
     }
 
@@ -1029,8 +866,12 @@ public class NMS {
         BRIDGE.trySwim(entity, power);
     }
 
-    public static void updateInventoryTitle(Player player, InventoryViewAPI view, String newTitle) {
+    public static void updateInventoryTitle(Player player, InventoryView view, String newTitle) {
         BRIDGE.updateInventoryTitle(player, view, newTitle);
+    }
+
+    public static void updateMountedInteractionHeight(Entity entity, Entity mount, double height) {
+        BRIDGE.updateMountedInteractionHeight(entity, mount, height);
     }
 
     public static void updateNavigationWorld(org.bukkit.entity.Entity entity, org.bukkit.World world) {
@@ -1041,15 +882,15 @@ public class NMS {
         BRIDGE.updatePathfindingRange(npc, pathfindingRange);
     }
 
+    private static Method ADD_OPENS;
+
     private static NMSBridge BRIDGE;
-    private static MethodHandle CUSTOM_NBT_TAG;
-    private static boolean CUSTOM_NBT_TAG_MISSING;
-    private static MethodHandle FIND_PROFILES_BY_NAMES;
-    private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+    private static Method GET_MODULE;
+    private static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private static Field MODIFIERS_FIELD;
     private static boolean PAPER_KNOCKBACK_EVENT_EXISTS = true;
-    private static boolean SUPPORTS_ATTRIBUTABLE = true;
-    private static boolean SUPPORTS_FIND_PROFILES_BY_NAME = true;
+    private static boolean SUPPORT_KNOCKBACK_RESISTANCE = true;
+    private static Object UNSAFE;
     private static MethodHandle UNSAFE_FIELD_OFFSET;
     private static MethodHandle UNSAFE_PUT_BOOLEAN;
     private static MethodHandle UNSAFE_PUT_DOUBLE;
@@ -1065,16 +906,9 @@ public class NMS {
         } catch (ClassNotFoundException e) {
             PAPER_KNOCKBACK_EVENT_EXISTS = false;
         }
-        try {
-            Class.forName("org.bukkit.attribute.Attributable");
-        } catch (ClassNotFoundException e) {
-            SUPPORTS_ATTRIBUTABLE = false;
-        }
-        try {
-            GameProfileRepository.class.getMethod("findProfilesByNames", String[].class, ProfileLookupCallback.class);
-        } catch (Exception e) {
-            SUPPORTS_FIND_PROFILES_BY_NAME = false;
-        }
+    }
+
+    static {
         giveReflectiveAccess(Field.class, NMS.class);
         MODIFIERS_FIELD = NMS.getField(Field.class, "modifiers", false);
     }

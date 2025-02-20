@@ -45,7 +45,7 @@ public class PhantomTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "phantom (--size size)",
-            desc = "",
+            desc = "Sets phantom modifiers",
             modifiers = { "phantom" },
             min = 1,
             max = 1,
@@ -56,14 +56,16 @@ public class PhantomTrait extends Trait {
         PhantomTrait trait = npc.getOrAddTrait(PhantomTrait.class);
         String output = "";
         if (size != null) {
-            if (size <= 0)
+            if (size <= 0) {
                 throw new CommandUsageException();
+            }
             trait.setSize(size);
             output += Messaging.tr(Messages.PHANTOM_STATE_SET, size);
         }
         if (!output.isEmpty()) {
             Messaging.send(sender, output);
-        } else
+        } else {
             throw new CommandUsageException();
+        }
     }
 }

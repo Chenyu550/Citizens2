@@ -10,7 +10,6 @@ import org.bukkit.inventory.ItemStack;
 import net.citizensnpcs.api.gui.InputMenus;
 import net.citizensnpcs.api.gui.InventoryMenuPage;
 import net.citizensnpcs.api.persistence.Persist;
-import net.citizensnpcs.util.InventoryMultiplexer;
 import net.citizensnpcs.util.Util;
 
 public class ExperienceAction extends NPCShopAction {
@@ -21,30 +20,30 @@ public class ExperienceAction extends NPCShopAction {
     }
 
     public ExperienceAction(int cost) {
-        exp = cost;
+        this.exp = cost;
     }
 
     @Override
     public String describe() {
-        return exp == 1 ? exp + " level" : exp + " levels";
+        return exp + " XP";
     }
 
     @Override
-    public int getMaxRepeats(Entity entity, InventoryMultiplexer inventory) {
+    public int getMaxRepeats(Entity entity) {
         if (!(entity instanceof Player))
             return 0;
-
         return ((Player) entity).getLevel() / exp;
     }
 
     @Override
-    public Transaction grant(Entity entity, InventoryMultiplexer inventory, int repeats) {
+    public Transaction grant(Entity entity, int repeats) {
         if (!(entity instanceof Player))
             return Transaction.fail();
-
         Player player = (Player) entity;
         int amount = exp * repeats;
-        return Transaction.create(() -> true, () -> {
+        return Transaction.create(() -> {
+            return true;
+        }, () -> {
             player.setLevel(player.getLevel() + amount);
         }, () -> {
             player.setLevel(player.getLevel() - amount);
@@ -52,13 +51,14 @@ public class ExperienceAction extends NPCShopAction {
     }
 
     @Override
-    public Transaction take(Entity entity, InventoryMultiplexer inventory, int repeats) {
+    public Transaction take(Entity entity, int repeats) {
         if (!(entity instanceof Player))
             return Transaction.fail();
-
         Player player = (Player) entity;
         int amount = exp * repeats;
-        return Transaction.create(() -> (player.getLevel() >= amount), () -> {
+        return Transaction.create(() -> {
+            return player.getLevel() >= amount;
+        }, () -> {
             player.setLevel(player.getLevel() - amount);
         }, () -> {
             player.setLevel(player.getLevel() + amount);
@@ -68,13 +68,12 @@ public class ExperienceAction extends NPCShopAction {
     public static class ExperienceActionGUI implements GUI {
         @Override
         public InventoryMenuPage createEditor(NPCShopAction previous, Consumer<NPCShopAction> callback) {
-            ExperienceAction action = previous == null ? new ExperienceAction() : (ExperienceAction) previous;
+            final ExperienceAction action = previous == null ? new ExperienceAction() : (ExperienceAction) previous;
             return InputMenus.filteredStringSetter(() -> Integer.toString(action.exp), s -> {
                 try {
                     int result = Integer.parseInt(s);
                     if (result < 0)
                         return false;
-
                     action.exp = result;
                 } catch (NumberFormatException nfe) {
                     return false;
@@ -91,7 +90,7 @@ public class ExperienceAction extends NPCShopAction {
                 ExperienceAction old = (ExperienceAction) previous;
                 description = old.describe();
             }
-            return Util.createItem(Material.EXPERIENCE_BOTTLE, "XP Level", description);
+            return Util.createItem(Material.EXPERIENCE_BOTTLE, "Experience", description);
         }
 
         @Override

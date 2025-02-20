@@ -44,7 +44,7 @@ public class PolarBearTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "polarbear (-r)",
-            desc = "",
+            desc = "Sets polarbear modifiers.",
             modifiers = { "polarbear" },
             min = 1,
             max = 1,
@@ -62,7 +62,8 @@ public class PolarBearTrait extends Trait {
         }
         if (!output.isEmpty()) {
             Messaging.send(sender, output);
-        } else
+        } else {
             throw new CommandUsageException();
+        }
     }
 }

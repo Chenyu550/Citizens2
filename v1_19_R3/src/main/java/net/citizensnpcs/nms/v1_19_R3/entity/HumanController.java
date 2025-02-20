@@ -23,6 +23,7 @@ import net.minecraft.server.level.ServerLevel;
 
 public class HumanController extends AbstractEntityController {
     public HumanController() {
+        super();
     }
 
     @Override
@@ -48,7 +49,9 @@ public class HumanController extends AbstractEntityController {
             if (getBukkitEntity() == null || !getBukkitEntity().isValid()
                     || getBukkitEntity() != handle.getBukkitEntity())
                 return;
-            NMS.addOrRemoveFromPlayerList(getBukkitEntity(), npc.shouldRemoveFromPlayerList());
+            boolean removeFromPlayerList = npc.data().get(NPC.Metadata.REMOVE_FROM_PLAYERLIST,
+                    Setting.REMOVE_PLAYERS_FROM_PLAYER_LIST.asBoolean());
+            NMS.addOrRemoveFromPlayerList(getBukkitEntity(), removeFromPlayerList);
         }, 20);
         handle.getBukkitEntity().setSleepingIgnored(true);
         return handle.getBukkitEntity();

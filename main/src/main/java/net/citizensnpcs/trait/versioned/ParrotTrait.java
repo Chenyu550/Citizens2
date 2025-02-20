@@ -46,7 +46,7 @@ public class ParrotTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "parrot (--variant variant)",
-            desc = "",
+            desc = "Sets parrot modifiers",
             modifiers = { "parrot" },
             min = 1,
             max = 1,
@@ -57,8 +57,9 @@ public class ParrotTrait extends Trait {
         ParrotTrait trait = npc.getOrAddTrait(ParrotTrait.class);
         String output = "";
         if (args.hasValueFlag("variant")) {
-            if (variant == null)
+            if (variant == null) {
                 throw new CommandException(Messages.INVALID_PARROT_VARIANT, Util.listValuesPretty(Variant.values()));
+            }
             trait.setVariant(variant);
             output += Messaging.tr(Messages.PARROT_VARIANT_SET, Util.prettyEnum(variant));
         }

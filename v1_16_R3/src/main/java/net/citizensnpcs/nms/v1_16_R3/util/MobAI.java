@@ -169,8 +169,9 @@ public interface MobAI {
                     mob.getControllerJump().b();
                 }
             };
-        } else if (handle instanceof MobAI)
+        } else if (handle instanceof MobAI) {
             return (MobAI) handle;
+        }
         return null;
     }
 }

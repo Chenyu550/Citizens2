@@ -22,7 +22,6 @@ import net.minecraft.server.v1_13_R2.EntityBoat;
 import net.minecraft.server.v1_13_R2.EntityCow;
 import net.minecraft.server.v1_13_R2.EntityHuman;
 import net.minecraft.server.v1_13_R2.EntityMinecartAbstract;
-import net.minecraft.server.v1_13_R2.EntityPlayer;
 import net.minecraft.server.v1_13_R2.EnumHand;
 import net.minecraft.server.v1_13_R2.EnumPistonReaction;
 import net.minecraft.server.v1_13_R2.FluidType;
@@ -93,7 +92,7 @@ public class CowController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
@@ -102,14 +101,10 @@ public class CowController extends MobEntityController {
             if (npc == null || !npc.isProtected())
                 return super.a(entityhuman, enumhand);
             ItemStack itemstack = entityhuman.b(enumhand);
-            if (itemstack.getItem() == Items.BUCKET && !entityhuman.abilities.canInstantlyBuild && !this.isBaby())
+            if (itemstack.getItem() == Items.BUCKET && !entityhuman.abilities.canInstantlyBuild && !this.isBaby()) {
                 return false;
+            }
             return super.a(entityhuman, enumhand);
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
@@ -123,8 +118,9 @@ public class CowController extends MobEntityController {
 
         @Override
         public boolean b(Tag<FluidType> tag) {
-            if (npc == null)
+            if (npc == null) {
                 return super.b(tag);
+            }
             double mx = motX;
             double my = motY;
             double mz = motZ;
@@ -147,11 +143,6 @@ public class CowController extends MobEntityController {
             if (npc == null || !npc.isFlyable()) {
                 super.c(f, f1);
             }
-        }
-
-        @Override
-        public float cG() {
-            return NMS.getJumpPower(npc, super.cG());
         }
 
         @Override
@@ -232,17 +223,19 @@ public class CowController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
 
         @Override
         public boolean z_() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.z_();
-            else
+            } else {
                 return false;
+            }
         }
     }
 }

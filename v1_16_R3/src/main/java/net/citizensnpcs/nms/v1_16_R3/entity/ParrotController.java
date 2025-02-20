@@ -16,14 +16,12 @@ import net.citizensnpcs.npc.ai.NPCHolder;
 import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_16_R3.AxisAlignedBB;
-import net.minecraft.server.v1_16_R3.ControllerMoveFlying;
 import net.minecraft.server.v1_16_R3.DamageSource;
 import net.minecraft.server.v1_16_R3.Entity;
 import net.minecraft.server.v1_16_R3.EntityBoat;
 import net.minecraft.server.v1_16_R3.EntityHuman;
 import net.minecraft.server.v1_16_R3.EntityMinecartAbstract;
 import net.minecraft.server.v1_16_R3.EntityParrot;
-import net.minecraft.server.v1_16_R3.EntityPlayer;
 import net.minecraft.server.v1_16_R3.EntityTypes;
 import net.minecraft.server.v1_16_R3.EnumHand;
 import net.minecraft.server.v1_16_R3.EnumInteractionResult;
@@ -55,9 +53,6 @@ public class ParrotController extends MobEntityController {
         public EntityParrotNPC(EntityTypes<? extends EntityParrot> types, World world, NPC npc) {
             super(types, world);
             this.npc = (CitizensNPC) npc;
-            if (npc != null) {
-                this.moveController = new ControllerMoveFlying(this, 10, true);
-            }
         }
 
         @Override
@@ -66,20 +61,16 @@ public class ParrotController extends MobEntityController {
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public void a(float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a((float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a((float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
         @Override
         public boolean a(Tag<FluidType> tag, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.a(tag, d0);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.a(tag, d0);
             if (!npc.isPushableByFluids()) {
@@ -91,8 +82,9 @@ public class ParrotController extends MobEntityController {
         @Override
         public EnumInteractionResult b(EntityHuman paramEntityHuman, EnumHand paramEnumHand) {
             // block feeding
-            if (npc == null || !npc.isProtected())
+            if (npc == null || !npc.isProtected()) {
                 return super.b(paramEntityHuman, paramEnumHand);
+            }
             return EnumInteractionResult.FAIL;
         }
 
@@ -121,11 +113,6 @@ public class ParrotController extends MobEntityController {
         @Override
         public boolean d(NBTTagCompound save) {
             return npc == null ? super.d(save) : false;
-        }
-
-        @Override
-        public float dJ() {
-            return NMS.getJumpPower(npc, super.dJ());
         }
 
         @Override
@@ -189,8 +176,9 @@ public class ParrotController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
     }

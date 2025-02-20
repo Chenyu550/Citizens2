@@ -9,8 +9,7 @@ import net.citizensnpcs.api.util.DataKey;
 import net.citizensnpcs.util.NMS;
 
 /**
- * Persists the current {@link Location} of the {@link net.citizensnpcs.api.npc.NPC}. Will cache last known location if
- * despawned.
+ * Persists the current {@link Location} of the {@link NPC}. Will cache last known location if despawned.
  */
 @TraitName("location")
 public class CurrentLocation extends Trait {
@@ -52,7 +51,7 @@ public class CurrentLocation extends Trait {
     }
 
     public void setLocation(Location loc) {
-        location = loc.clone();
+        this.location = loc.clone();
     }
 
     @Override

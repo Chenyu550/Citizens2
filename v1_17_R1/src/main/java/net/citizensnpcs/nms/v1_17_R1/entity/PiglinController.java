@@ -16,20 +16,14 @@ import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.Tag;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.piglin.Piglin;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.vehicle.AbstractMinecart;
 import net.minecraft.world.entity.vehicle.Boat;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
@@ -60,21 +54,18 @@ public class PiglinController extends MobEntityController {
         }
 
         @Override
-        public boolean broadcastToPlayer(ServerPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.broadcastToPlayer(player));
-        }
-
-        @Override
         protected boolean canRide(Entity entity) {
-            if (npc != null && (entity instanceof Boat || entity instanceof AbstractMinecart))
+            if (npc != null && (entity instanceof Boat || entity instanceof AbstractMinecart)) {
                 return !npc.isProtected();
+            }
             return super.canRide(entity);
         }
 
         @Override
         public boolean causeFallDamage(float f, float f1, DamageSource damagesource) {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.causeFallDamage(f, f1, damagesource);
+            }
             return false;
         }
 
@@ -128,11 +119,6 @@ public class PiglinController extends MobEntityController {
         }
 
         @Override
-        public float getJumpPower() {
-            return NMS.getJumpPower(npc, super.getJumpPower());
-        }
-
-        @Override
         public int getMaxFallDistance() {
             return NMS.getFallDistance(npc, super.getMaxFallDistance());
         }
@@ -160,7 +146,7 @@ public class PiglinController extends MobEntityController {
 
         @Override
         public void knockback(double strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, (float) strength, dx, dz, evt -> super.knockback((float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, (float) strength, dx, dz, (evt) -> super.knockback((float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
@@ -170,21 +156,12 @@ public class PiglinController extends MobEntityController {
         }
 
         @Override
-        public InteractionResult mobInteract(Player entityhuman, InteractionHand enumhand) {
-            if (npc == null || !npc.isProtected())
-                return super.mobInteract(entityhuman, enumhand);
-            ItemStack itemstack = entityhuman.getItemInHand(enumhand);
-            if (itemstack.is(Items.GOLD_INGOT))
-                return InteractionResult.FAIL;
-            return super.mobInteract(entityhuman, enumhand);
-        }
-
-        @Override
         public boolean onClimbable() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.onClimbable();
-            else
+            } else {
                 return false;
+            }
         }
 
         @Override
@@ -200,9 +177,8 @@ public class PiglinController extends MobEntityController {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.push(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
         }
 
         @Override
@@ -221,8 +197,9 @@ public class PiglinController extends MobEntityController {
 
         @Override
         public boolean updateFluidHeightAndDoFluidPushing(Tag<Fluid> Tag, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.updateFluidHeightAndDoFluidPushing(Tag, d0);
+            }
             Vec3 old = getDeltaMovement().add(0, 0, 0);
             boolean res = super.updateFluidHeightAndDoFluidPushing(Tag, d0);
             if (!npc.isPushableByFluids()) {

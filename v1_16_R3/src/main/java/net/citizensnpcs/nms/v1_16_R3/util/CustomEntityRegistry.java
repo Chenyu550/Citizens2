@@ -3,12 +3,10 @@ package net.citizensnpcs.nms.v1_16_R3.util;
 import java.lang.invoke.MethodHandle;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -34,14 +32,10 @@ public class CustomEntityRegistry extends RegistryBlocks implements Supplier<Reg
     }
 
     @Override
-    public MinecraftKey a() {
-        return wrapped.a();
-    }
-
-    @Override
     public int a(Object key) {
-        if (entityIds.containsKey(key))
+        if (entityIds.containsKey(key)) {
             return entityIds.get(key);
+        }
         return wrapped.a((EntityTypes) key);
     }
 
@@ -56,28 +50,13 @@ public class CustomEntityRegistry extends RegistryBlocks implements Supplier<Reg
     }
 
     @Override
-    public Lifecycle b() {
-        return wrapped.b();
-    }
-
-    @Override
     public Optional c(Object key) {
         return wrapped.c((EntityTypes<?>) key);
     }
 
     @Override
-    public Set<Entry<ResourceKey<EntityTypes<?>>, EntityTypes<?>>> d() {
-        return wrapped.d();
-    }
-
-    @Override
     public Object d(ResourceKey key) {
         return wrapped.d(key);
-    }
-
-    @Override
-    public ResourceKey<? extends IRegistry<EntityTypes<?>>> f() {
-        return wrapped.f();
     }
 
     public EntityTypes findType(Class<?> search) {
@@ -98,33 +77,31 @@ public class CustomEntityRegistry extends RegistryBlocks implements Supplier<Reg
     }
 
     @Override
-    public Stream<EntityTypes<?>> g() {
-        return wrapped.g();
-    }
-
-    @Override
     public RegistryBlocks<EntityTypes<?>> get() {
         return wrapped;
     }
 
     @Override
     public EntityTypes get(MinecraftKey key) {
-        if (entities.containsKey(key))
+        if (entities.containsKey(key)) {
             return entities.get(key);
+        }
         return wrapped.get(key);
     }
 
     @Override
     public MinecraftKey getKey(Object value) {
-        if (entityClasses.containsKey(value))
+        if (entityClasses.containsKey(value)) {
             return entityClasses.get(value);
+        }
         return wrapped.getKey((EntityTypes) value);
     }
 
     @Override
     public Optional getOptional(MinecraftKey var0) {
-        if (entities.containsKey(var0))
+        if (entities.containsKey(var0)) {
             return Optional.of(entities.get(var0));
+        }
         return this.wrapped.getOptional(var0);
     }
 

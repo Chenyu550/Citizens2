@@ -20,25 +20,24 @@ import net.citizensnpcs.util.StringHelper;
 @Requirements
 public class AdminCommands {
     private final Citizens plugin;
-    private final Map<CommandSender, Long> reloadTimeouts = new WeakHashMap<>();
+    private final Map<CommandSender, Long> reloadTimeouts = new WeakHashMap<CommandSender, Long>();
 
     public AdminCommands(Citizens plugin) {
         this.plugin = plugin;
     }
 
-    @Command(aliases = { "citizens" }, desc = "", max = 0, permission = "citizens.admin")
+    @Command(aliases = { "citizens" }, desc = "Show basic plugin information", max = 0, permission = "citizens.admin")
     public void citizens(CommandContext args, CommandSender sender, NPC npc) throws CommandException {
         Messaging.send(sender, StringHelper.wrapHeader("<green>Citizens v" + plugin.getDescription().getVersion()));
         Messaging.send(sender, "     <yellow>-- <green>Author: fullwall");
         Messaging.send(sender, "     <yellow>-- <green><click:open_url:" + plugin.getDescription().getWebsite()
                 + "><hover:show_text:Citizens website including wiki><u>Website</hover></click> <click:open_url:https://discord.gg/Q6pZGSR><hover:show_text:Citizens Support Discord><u>Support</hover></click>");
-
     }
 
     @Command(
             aliases = { "citizens" },
             usage = "reload",
-            desc = "",
+            desc = "Load Citizens fresh from disk, without saving first",
             modifiers = { "reload", "load" },
             min = 1,
             max = 1,
@@ -65,7 +64,8 @@ public class AdminCommands {
     @Command(
             aliases = { "citizens" },
             usage = "save (-a)",
-            desc = "",
+            desc = "Save NPCs",
+            help = Messages.COMMAND_SAVE_HELP,
             modifiers = { "save" },
             min = 1,
             max = 1,

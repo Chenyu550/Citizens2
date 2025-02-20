@@ -12,7 +12,7 @@ public class CreateNPCHistoryItem implements CommandHistoryItem {
     private final UUID uuid;
 
     public CreateNPCHistoryItem(NPC npc) {
-        uuid = npc.getUniqueId();
+        this.uuid = npc.getUniqueId();
     }
 
     @Override

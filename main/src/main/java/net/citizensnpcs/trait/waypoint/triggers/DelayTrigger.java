@@ -20,11 +20,6 @@ public class DelayTrigger implements WaypointTrigger {
         this.delay = delay;
     }
 
-    private void delay(WaypointProvider provider) {
-        provider.setPaused(true);
-        Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), () -> provider.setPaused(false), delay);
-    }
-
     @Override
     public String description() {
         return String.format("[[Delay]] for [[%d]] ticks", delay);
@@ -39,5 +34,15 @@ public class DelayTrigger implements WaypointTrigger {
         if (delay > 0) {
             delay(npc.getOrAddTrait(Waypoints.class).getCurrentProvider());
         }
+    }
+
+    private void delay(final WaypointProvider provider) {
+        provider.setPaused(true);
+        Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), new Runnable() {
+            @Override
+            public void run() {
+                provider.setPaused(false);
+            }
+        }, delay);
     }
 }

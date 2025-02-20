@@ -2,15 +2,13 @@ package net.citizensnpcs.npc;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import net.citizensnpcs.Citizens;
-import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.api.trait.Trait;
 import net.citizensnpcs.api.trait.TraitFactory;
@@ -24,8 +22,6 @@ import net.citizensnpcs.api.trait.trait.Spawned;
 import net.citizensnpcs.trait.Age;
 import net.citizensnpcs.trait.Anchors;
 import net.citizensnpcs.trait.ArmorStandTrait;
-import net.citizensnpcs.trait.AttributeTrait;
-import net.citizensnpcs.trait.BatTrait;
 import net.citizensnpcs.trait.BoundingBoxTrait;
 import net.citizensnpcs.trait.ClickRedirectTrait;
 import net.citizensnpcs.trait.CommandTrait;
@@ -34,15 +30,12 @@ import net.citizensnpcs.trait.CurrentLocation;
 import net.citizensnpcs.trait.DropsTrait;
 import net.citizensnpcs.trait.EnderCrystalTrait;
 import net.citizensnpcs.trait.EndermanTrait;
-import net.citizensnpcs.trait.EntityPoseTrait;
 import net.citizensnpcs.trait.FollowTrait;
-import net.citizensnpcs.trait.ForcefieldTrait;
 import net.citizensnpcs.trait.GameModeTrait;
 import net.citizensnpcs.trait.Gravity;
 import net.citizensnpcs.trait.HologramTrait;
 import net.citizensnpcs.trait.HomeTrait;
 import net.citizensnpcs.trait.HorseModifiers;
-import net.citizensnpcs.trait.ItemFrameTrait;
 import net.citizensnpcs.trait.LookClose;
 import net.citizensnpcs.trait.MirrorTrait;
 import net.citizensnpcs.trait.MountTrait;
@@ -55,17 +48,15 @@ import net.citizensnpcs.trait.Powered;
 import net.citizensnpcs.trait.RabbitType;
 import net.citizensnpcs.trait.RotationTrait;
 import net.citizensnpcs.trait.Saddle;
-import net.citizensnpcs.trait.ScaledMaxHealthTrait;
 import net.citizensnpcs.trait.ScoreboardTrait;
+import net.citizensnpcs.trait.ScriptTrait;
 import net.citizensnpcs.trait.SheepTrait;
-import net.citizensnpcs.trait.ShopTrait;
 import net.citizensnpcs.trait.SitTrait;
 import net.citizensnpcs.trait.SkinLayers;
 import net.citizensnpcs.trait.SkinTrait;
 import net.citizensnpcs.trait.SleepTrait;
 import net.citizensnpcs.trait.SlimeSize;
 import net.citizensnpcs.trait.SneakTrait;
-import net.citizensnpcs.trait.TargetableTrait;
 import net.citizensnpcs.trait.VillagerProfession;
 import net.citizensnpcs.trait.WitherTrait;
 import net.citizensnpcs.trait.WolfModifiers;
@@ -82,9 +73,7 @@ public class CitizensTraitFactory implements TraitFactory {
     public CitizensTraitFactory(Citizens plugin) {
         registerTrait(TraitInfo.create(Age.class));
         registerTrait(TraitInfo.create(ArmorStandTrait.class));
-        registerTrait(TraitInfo.create(AttributeTrait.class));
-        registerTrait(TraitInfo.create(Anchors.class).optInToStats());
-        registerTrait(TraitInfo.create(BatTrait.class));
+        registerTrait(TraitInfo.create(Anchors.class));
         registerTrait(TraitInfo.create(BoundingBoxTrait.class));
         registerTrait(TraitInfo.create(ClickRedirectTrait.class));
         registerTrait(TraitInfo.create(CommandTrait.class).optInToStats());
@@ -93,18 +82,15 @@ public class CitizensTraitFactory implements TraitFactory {
         registerTrait(TraitInfo.create(DropsTrait.class).optInToStats());
         registerTrait(TraitInfo.create(EnderCrystalTrait.class));
         registerTrait(TraitInfo.create(EndermanTrait.class));
-        registerTrait(TraitInfo.create(EntityPoseTrait.class));
         registerTrait(TraitInfo.create(Equipment.class));
         registerTrait(TraitInfo.create(FollowTrait.class).optInToStats());
-        registerTrait(TraitInfo.create(ForcefieldTrait.class).optInToStats());
         registerTrait(TraitInfo.create(GameModeTrait.class));
         registerTrait(TraitInfo.create(Gravity.class));
         registerTrait(TraitInfo.create(HomeTrait.class).optInToStats());
         registerTrait(TraitInfo.create(HorseModifiers.class));
-        registerTrait(TraitInfo.create(HologramTrait.class).optInToStats());
+        registerTrait(TraitInfo.create(HologramTrait.class));
         registerTrait(TraitInfo.create(Inventory.class));
-        registerTrait(TraitInfo.create(ItemFrameTrait.class));
-        registerTrait(TraitInfo.create(LookClose.class).optInToStats());
+        registerTrait(TraitInfo.create(LookClose.class));
         registerTrait(TraitInfo.create(PaintingTrait.class));
         registerTrait(TraitInfo.create(MirrorTrait.class).optInToStats());
         registerTrait(TraitInfo.create(MountTrait.class));
@@ -130,11 +116,9 @@ public class CitizensTraitFactory implements TraitFactory {
         registerTrait(TraitInfo.create(RabbitType.class));
         registerTrait(TraitInfo.create(RotationTrait.class));
         registerTrait(TraitInfo.create(Saddle.class));
-        registerTrait(TraitInfo.create(ScaledMaxHealthTrait.class));
         registerTrait(TraitInfo.create(ScoreboardTrait.class));
+        registerTrait(TraitInfo.create(ScriptTrait.class).optInToStats());
         registerTrait(TraitInfo.create(SitTrait.class).optInToStats());
-        registerTrait(
-                TraitInfo.create(ShopTrait.class).optInToStats().withSupplier(() -> new ShopTrait(plugin.getShops())));
         registerTrait(TraitInfo.create(SleepTrait.class));
         registerTrait(TraitInfo.create(SheepTrait.class));
         registerTrait(TraitInfo.create(SkinLayers.class));
@@ -142,8 +126,7 @@ public class CitizensTraitFactory implements TraitFactory {
         registerTrait(TraitInfo.create(SneakTrait.class));
         registerTrait(TraitInfo.create(SlimeSize.class));
         registerTrait(TraitInfo.create(Spawned.class));
-        registerTrait(TraitInfo.create(Text.class).optInToStats());
-        registerTrait(TraitInfo.create(TargetableTrait.class));
+        registerTrait(TraitInfo.create(Text.class));
         registerTrait(TraitInfo.create(Waypoints.class).optInToStats());
         registerTrait(TraitInfo.create(WitherTrait.class));
         registerTrait(TraitInfo.create(WoolColor.class));
@@ -164,7 +147,7 @@ public class CitizensTraitFactory implements TraitFactory {
 
     @Override
     public void deregisterTrait(TraitInfo info) {
-        Objects.requireNonNull(info, "info cannot be null");
+        Preconditions.checkNotNull(info, "info cannot be null");
         registered.remove(info.getTraitName());
     }
 
@@ -176,8 +159,9 @@ public class CitizensTraitFactory implements TraitFactory {
     @Override
     public <T extends Trait> T getTrait(Class<T> clazz) {
         for (TraitInfo entry : registered.values()) {
-            if (clazz == entry.getTraitClass())
+            if (clazz == entry.getTraitClass()) {
                 return create(entry);
+            }
         }
         return null;
     }
@@ -185,7 +169,7 @@ public class CitizensTraitFactory implements TraitFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T extends Trait> T getTrait(String name) {
-        TraitInfo info = registered.get(name.toLowerCase(Locale.ROOT));
+        TraitInfo info = registered.get(name.toLowerCase());
         if (info == null)
             return null;
         return (T) create(info);
@@ -193,24 +177,24 @@ public class CitizensTraitFactory implements TraitFactory {
 
     @Override
     public Class<? extends Trait> getTraitClass(String name) {
-        TraitInfo info = registered.get(name.toLowerCase(Locale.ROOT));
+        TraitInfo info = registered.get(name.toLowerCase());
         return info == null ? null : info.getTraitClass();
     }
 
     @Override
     public void registerTrait(TraitInfo info) {
-        Objects.requireNonNull(info, "info cannot be null");
+        Preconditions.checkNotNull(info, "info cannot be null");
         info.checkValid();
-        if (registered.containsKey(info.getTraitName()))
+        if (registered.containsKey(info.getTraitName())) {
             throw new IllegalArgumentException("Trait name " + info.getTraitName() + " already registered");
+        }
         registered.put(info.getTraitName(), info);
         if (info.isDefaultTrait()) {
             defaultTraits.add(info);
         }
-        info.registerListener(CitizensAPI.getPlugin());
     }
 
     public boolean trackStats(Trait trait) {
-        return registered.get(trait.getName()).shouldTrackStats();
+        return registered.get(trait.getName()).trackStats();
     }
 }

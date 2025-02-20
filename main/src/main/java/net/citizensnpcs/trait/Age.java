@@ -17,7 +17,7 @@ import net.citizensnpcs.util.Messages;
  * @see Ageable
  */
 @TraitName("age")
-public class Age extends Trait {
+public class Age extends Trait implements Toggleable {
     @Persist
     private int age = 0;
     private Ageable ageable;
@@ -50,12 +50,13 @@ public class Age extends Trait {
             entity.setAge(age);
             entity.setAgeLock(locked);
             ageable = entity;
+        } else if (npc.getEntity() instanceof Zombie) {
+            ((Zombie) npc.getEntity()).setBaby(age < 0);
+            ageable = null;
+        } else if (npc.isSpawned() && npc.getEntity().getType().name().equals("TADPOLE")) {
+            ((Tadpole) npc.getEntity()).setAge(age);
+            ageable = null;
         } else {
-            if (npc.getEntity() instanceof Zombie) {
-                ((Zombie) npc.getEntity()).setBaby(age < 0);
-            } else if (npc.isSpawned() && npc.getEntity().getType().name().equals("TADPOLE")) {
-                ((Tadpole) npc.getEntity()).setAge(age);
-            }
             ageable = null;
         }
     }
@@ -77,11 +78,13 @@ public class Age extends Trait {
         if (isAgeable()) {
             ageable.setAgeLock(locked);
         }
+
     }
 
     /**
      * Toggles the age lock variable and returns whether the age is currently locked.
      */
+    @Override
     public boolean toggle() {
         locked = !locked;
         if (isAgeable()) {

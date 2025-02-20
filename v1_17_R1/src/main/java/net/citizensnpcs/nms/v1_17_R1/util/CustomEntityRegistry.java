@@ -7,7 +7,6 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -164,11 +163,6 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
     }
 
     @Override
-    public Lifecycle elementsLifecycle() {
-        return wrapped.elementsLifecycle();
-    }
-
-    @Override
     public Set<Object> entrySet() {
         return (Set) wrapped.entrySet();
     }
@@ -197,22 +191,25 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
 
     @Override
     public EntityType get(ResourceLocation key) {
-        if (entities.containsKey(key))
+        if (entities.containsKey(key)) {
             return entities.get(key);
+        }
         return wrapped.get(key);
     }
 
     @Override
     public int getId(Object key) {
-        if (entityIds.containsKey(key))
+        if (entityIds.containsKey(key)) {
             return entityIds.get(key);
+        }
         return wrapped.getId((EntityType) key);
     }
 
     @Override
     public ResourceLocation getKey(Object value) {
-        if (entityClasses.containsKey(value))
+        if (entityClasses.containsKey(value)) {
             return entityClasses.get(value);
+        }
         return wrapped.getKey((EntityType) value);
     }
 
@@ -223,8 +220,9 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
 
     @Override
     public Optional getOptional(ResourceLocation var0) {
-        if (entities.containsKey(var0))
+        if (entities.containsKey(var0)) {
             return Optional.of(entities.get(var0));
+        }
         return this.wrapped.getOptional(var0);
     }
 
@@ -249,28 +247,13 @@ public class CustomEntityRegistry extends DefaultedRegistry implements Supplier<
     }
 
     @Override
-    public ResourceKey<? extends Registry<EntityType<?>>> key() {
-        return wrapped.key();
-    }
-
-    @Override
     public Set<Object> keySet() {
         return (Set) wrapped.keySet();
-    }
-
-    @Override
-    public Lifecycle lifecycle(Object type) {
-        return wrapped.lifecycle((EntityType<?>) type);
     }
 
     public void put(int entityId, ResourceLocation key, EntityType entityClass) {
         entities.put(key, entityClass);
         entityIds.put(entityClass, entityId);
-    }
-
-    @Override
-    public Stream stream() {
-        return wrapped.stream();
     }
 
     private static final MethodHandle IREGISTRY_LIFECYCLE = NMS.getFirstGetter(Registry.class, Lifecycle.class);

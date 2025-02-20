@@ -258,10 +258,10 @@ public class SkinLayers extends Trait {
         RIGHT_PANTS(5),
         RIGHT_SLEEVE(3);
 
-        int flag;
+        final int flag;
 
         Layer(int offset) {
-            flag = 1 << offset;
+            this.flag = 1 << offset;
         }
 
         public static byte toByte(Set<Layer> flags) {

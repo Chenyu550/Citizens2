@@ -5,7 +5,6 @@ import java.util.Collection;
 import org.bukkit.Location;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.api.persistence.Persist;
@@ -13,13 +12,10 @@ import net.citizensnpcs.util.Util;
 
 public class CommandTrigger implements WaypointTrigger {
     @Persist(required = true)
-    private Collection<String> commands = Lists.newArrayList();
-
-    public CommandTrigger() {
-    }
+    private final Collection<String> commands;
 
     public CommandTrigger(Collection<String> commands) {
-        this.commands = Lists.newArrayList(commands);
+        this.commands = commands;
     }
 
     @Override

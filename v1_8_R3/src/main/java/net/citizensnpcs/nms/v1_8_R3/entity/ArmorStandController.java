@@ -19,7 +19,6 @@ import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_8_R3.AxisAlignedBB;
 import net.minecraft.server.v1_8_R3.EntityArmorStand;
 import net.minecraft.server.v1_8_R3.EntityHuman;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
 import net.minecraft.server.v1_8_R3.NBTTagCompound;
 import net.minecraft.server.v1_8_R3.Vec3D;
 import net.minecraft.server.v1_8_R3.World;
@@ -58,7 +57,6 @@ public class ArmorStandController extends MobEntityController {
         public EntityArmorStandNPC(World world, NPC npc) {
             super(world);
             this.npc = (CitizensNPC) npc;
-            NMS.setStepHeight(getBukkitEntity(), 1);
         }
 
         @Override
@@ -68,22 +66,13 @@ public class ArmorStandController extends MobEntityController {
 
         @Override
         public boolean a(EntityHuman entityhuman, Vec3D vec3d) {
-            if (npc == null)
+            if (npc == null) {
                 return super.a(entityhuman, vec3d);
+            }
             PlayerInteractEntityEvent event = new PlayerInteractEntityEvent((Player) entityhuman.getBukkitEntity(),
                     getBukkitEntity());
             Bukkit.getPluginManager().callEvent(event);
             return !event.isCancelled();
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
-        public boolean aL() {
-            return npc == null ? super.aL() : npc.isPushableByFluids();
         }
 
         @Override
@@ -100,6 +89,8 @@ public class ArmorStandController extends MobEntityController {
         public boolean d(NBTTagCompound save) {
             return npc == null ? super.d(save) : false;
         }
+
+        
 
         @Override
         public void g(double x, double y, double z) {

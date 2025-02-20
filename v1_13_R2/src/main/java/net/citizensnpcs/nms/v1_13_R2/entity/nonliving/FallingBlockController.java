@@ -17,12 +17,10 @@ import net.citizensnpcs.nms.v1_13_R2.util.NMSImpl;
 import net.citizensnpcs.npc.AbstractEntityController;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_13_R2.AxisAlignedBB;
 import net.minecraft.server.v1_13_R2.Block;
 import net.minecraft.server.v1_13_R2.EntityFallingBlock;
-import net.minecraft.server.v1_13_R2.EntityPlayer;
 import net.minecraft.server.v1_13_R2.EnumMoveType;
 import net.minecraft.server.v1_13_R2.EnumPistonReaction;
 import net.minecraft.server.v1_13_R2.FluidType;
@@ -33,7 +31,9 @@ import net.minecraft.server.v1_13_R2.World;
 import net.minecraft.server.v1_13_R2.WorldServer;
 
 public class FallingBlockController extends AbstractEntityController {
-
+    public FallingBlockController() {
+        super(EntityFallingBlockNPC.class);
+    }
 
     @Override
     protected Entity createEntity(Location at, NPC npc) {
@@ -72,14 +72,10 @@ public class FallingBlockController extends AbstractEntityController {
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public boolean b(Tag<FluidType> tag) {
-            if (npc == null)
+            if (npc == null) {
                 return super.b(tag);
+            }
             double mx = motX;
             double my = motY;
             double mz = motZ;

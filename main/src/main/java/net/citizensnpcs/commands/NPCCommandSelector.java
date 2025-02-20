@@ -26,6 +26,7 @@ import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.api.npc.NPCRegistry;
 import net.citizensnpcs.api.util.Messaging;
 import net.citizensnpcs.util.Messages;
+import net.citizensnpcs.util.Util;
 
 public class NPCCommandSelector extends NumericPrompt {
     private final Callback callback;
@@ -33,7 +34,7 @@ public class NPCCommandSelector extends NumericPrompt {
 
     public NPCCommandSelector(Callback callback, List<NPC> possible) {
         this.callback = callback;
-        choices = possible;
+        this.choices = possible;
     }
 
     @Override
@@ -85,7 +86,7 @@ public class NPCCommandSelector extends NumericPrompt {
     }
 
     public static void start(Callback callback, Conversable player, List<NPC> possible) {
-        Conversation conversation = new ConversationFactory(CitizensAPI.getPlugin()).withLocalEcho(false)
+        final Conversation conversation = new ConversationFactory(CitizensAPI.getPlugin()).withLocalEcho(false)
                 .withEscapeSequence("exit").withModality(false)
                 .withFirstPrompt(new NPCCommandSelector(callback, possible)).buildConversation(player);
         conversation.begin();
@@ -99,6 +100,7 @@ public class NPCCommandSelector extends NumericPrompt {
             return;
         } catch (IllegalArgumentException e) {
         }
+
         Integer id = Ints.tryParse(raw);
         if (id != null) {
             callback.run(npcRegistry.getById(id));
@@ -110,12 +112,12 @@ public class NPCCommandSelector extends NumericPrompt {
         if (args.hasValueFlag("range")) {
             range = Math.abs(args.getFlagDouble("range"));
         }
+
         for (NPC test : npcRegistry) {
             if (test.getName().equalsIgnoreCase(name)) {
                 if (range > 0 && test.isSpawned()
-                        && args.getSenderLocation().distance(test.getEntity().getLocation()) > range) {
+                        && !Util.locationWithinRange(args.getSenderLocation(), test.getEntity().getLocation(), range))
                     continue;
-                }
                 possible.add(test);
             }
         }

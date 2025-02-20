@@ -55,7 +55,7 @@ public class SnifferTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "sniffer (--state [state])",
-            desc = "",
+            desc = "Sets sniffer modifiers",
             modifiers = { "sniffer" },
             min = 1,
             max = 1,
@@ -71,7 +71,8 @@ public class SnifferTrait extends Trait {
         }
         if (!output.isEmpty()) {
             Messaging.send(sender, output.trim());
-        } else
+        } else {
             throw new CommandUsageException();
+        }
     }
 }

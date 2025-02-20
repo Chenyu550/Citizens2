@@ -17,12 +17,10 @@ import net.citizensnpcs.nms.v1_16_R3.util.NMSImpl;
 import net.citizensnpcs.npc.AbstractEntityController;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_16_R3.AxisAlignedBB;
 import net.minecraft.server.v1_16_R3.EntityLlama;
 import net.minecraft.server.v1_16_R3.EntityLlamaSpit;
-import net.minecraft.server.v1_16_R3.EntityPlayer;
 import net.minecraft.server.v1_16_R3.EntityTypes;
 import net.minecraft.server.v1_16_R3.EnumPistonReaction;
 import net.minecraft.server.v1_16_R3.FluidType;
@@ -33,11 +31,15 @@ import net.minecraft.server.v1_16_R3.World;
 import net.minecraft.server.v1_16_R3.WorldServer;
 
 public class LlamaSpitController extends AbstractEntityController {
+    public LlamaSpitController() {
+        super(EntityLlamaSpitNPC.class);
+    }
 
     @Override
     protected Entity createEntity(Location at, NPC npc) {
         WorldServer ws = ((CraftWorld) at.getWorld()).getHandle();
-        final EntityLlamaSpitNPC handle = new EntityLlamaSpitNPC(EntityTypes.LLAMA_SPIT, ws, npc);
+        final EntityLlamaSpitNPC handle = new EntityLlamaSpitNPC(
+                NMSImpl.<EntityLlamaSpit> getEntityType(EntityLlamaSpitNPC.class), ws, npc);
         handle.setPositionRotation(at.getX(), at.getY(), at.getZ(), at.getPitch(), at.getYaw());
         return handle.getBukkitEntity();
     }
@@ -70,14 +72,10 @@ public class LlamaSpitController extends AbstractEntityController {
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public boolean a(Tag<FluidType> tag, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.a(tag, d0);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.a(tag, d0);
             if (!npc.isPushableByFluids()) {

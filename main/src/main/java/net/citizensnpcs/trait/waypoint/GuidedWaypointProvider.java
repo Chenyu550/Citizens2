@@ -3,7 +3,6 @@ package net.citizensnpcs.trait.waypoint;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -77,22 +76,22 @@ public class GuidedWaypointProvider implements EnumerableWaypointProvider {
     }
 
     @Override
-    public WaypointEditor createEditor(CommandSender sender, CommandContext args) {
+    public WaypointEditor createEditor(final CommandSender sender, CommandContext args) {
         if (!(sender instanceof Player)) {
             Messaging.sendErrorTr(sender, CommandMessages.MUST_BE_INGAME);
             return null;
         }
-        Player player = (Player) sender;
+        final Player player = (Player) sender;
         return new WaypointEditor() {
-            private final EntityMarkers<Waypoint> markers = new EntityMarkers<>();
+            private final EntityMarkers<Waypoint> markers = new EntityMarkers<Waypoint>();
             private boolean showPath = true;
 
             @Override
             public void begin() {
-                Messaging.sendTr(player, Messages.GUIDED_WAYPOINT_EDITOR_BEGIN);
                 if (showPath) {
                     createWaypointMarkers();
                 }
+                Messaging.sendTr(player, Messages.GUIDED_WAYPOINT_EDITOR_BEGIN);
             }
 
             private void createDestinationMarker(Waypoint element) {
@@ -102,12 +101,11 @@ public class GuidedWaypointProvider implements EnumerableWaypointProvider {
                 }
             }
 
-            private NPC createMarker(Waypoint waypoint) {
-                Entity entity = markers.createMarker(waypoint, waypoint.getLocation().clone().add(0, 1, 0));
+            private NPC createMarker(Waypoint element) {
+                Entity entity = markers.createMarker(element, element.getLocation().clone().add(0, 1, 0));
                 if (entity == null)
                     return null;
-                NPC npc2 = ((NPCHolder) entity).getNPC();
-                npc2.data().setPersistent("waypointhashcode", waypoint.hashCode());
+                ((NPCHolder) entity).getNPC().data().setPersistent("waypointhashcode", element.hashCode());
                 return ((NPCHolder) entity).getNPC();
             }
 
@@ -132,7 +130,7 @@ public class GuidedWaypointProvider implements EnumerableWaypointProvider {
                     return;
                 if (event.getMessage().equalsIgnoreCase("toggle path")) {
                     event.setCancelled(true);
-                    Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), this::togglePath);
+                    Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), () -> togglePath());
                 } else if (event.getMessage().equalsIgnoreCase("clear")) {
                     event.setCancelled(true);
                     Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), () -> {
@@ -231,17 +229,15 @@ public class GuidedWaypointProvider implements EnumerableWaypointProvider {
                 : key.getRelative("destinations");
         for (DataKey root : dd.getIntegerSubKeys()) {
             Waypoint waypoint = PersistenceLoader.load(Waypoint.class, root);
-            if (waypoint == null) {
+            if (waypoint == null)
                 continue;
-            }
             destinations.add(waypoint);
         }
         DataKey gd = key.keyExists("helperwaypoints") ? key.getRelative("helperwaypoints") : key.getRelative("guides");
         for (DataKey root : gd.getIntegerSubKeys()) {
             Waypoint waypoint = PersistenceLoader.load(Waypoint.class, root);
-            if (waypoint == null) {
+            if (waypoint == null)
                 continue;
-            }
             guides.add(waypoint);
         }
         if (key.keyExists("distance")) {
@@ -272,15 +268,14 @@ public class GuidedWaypointProvider implements EnumerableWaypointProvider {
         tree.clear();
         treePlusDestinations.clear();
         for (Waypoint waypoint : guides) {
-            Location location = waypoint.getLocation();
-            tree.put(new long[] { location.getBlockX(), location.getBlockY(), location.getBlockZ() }, waypoint);
-            treePlusDestinations.put(new long[] { location.getBlockX(), location.getBlockY(), location.getBlockZ() },
-                    waypoint);
+            tree.put(new long[] { waypoint.getLocation().getBlockX(), waypoint.getLocation().getBlockY(),
+                    waypoint.getLocation().getBlockZ() }, waypoint);
+            treePlusDestinations.put(new long[] { waypoint.getLocation().getBlockX(),
+                    waypoint.getLocation().getBlockY(), waypoint.getLocation().getBlockZ() }, waypoint);
         }
         for (Waypoint waypoint : destinations) {
-            Location location = waypoint.getLocation();
-            treePlusDestinations.put(new long[] { location.getBlockX(), location.getBlockY(), location.getBlockZ() },
-                    waypoint);
+            treePlusDestinations.put(new long[] { waypoint.getLocation().getBlockX(),
+                    waypoint.getLocation().getBlockY(), waypoint.getLocation().getBlockZ() }, waypoint);
         }
         if (currentGoal != null) {
             currentGoal.onProviderChanged();
@@ -345,10 +340,12 @@ public class GuidedWaypointProvider implements EnumerableWaypointProvider {
                 target.onReach(npc);
                 plan = null;
             }
+
             if (plan == null) {
                 selector.finish();
                 return;
             }
+
             if (npc.getNavigator().isNavigating())
                 return;
 
@@ -366,11 +363,7 @@ public class GuidedWaypointProvider implements EnumerableWaypointProvider {
             if (paused || destinations.size() == 0 || !npc.isSpawned() || npc.getNavigator().isNavigating())
                 return false;
 
-            target = destinations.get(Util.getFastRandom().nextInt(destinations.size()));
-            if (!target.getLocation().getWorld().equals(npc.getEntity().getWorld())) {
-                target = null;
-                return false;
-            }
+            this.target = destinations.get(Util.getFastRandom().nextInt(destinations.size()));
             plan = ASTAR.runFully(new GuidedGoal(target), new GuidedNode(null, new Waypoint(npc.getStoredLocation())));
             return plan != null;
         }
@@ -423,32 +416,39 @@ public class GuidedWaypointProvider implements EnumerableWaypointProvider {
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj)
+            if (this == obj) {
                 return true;
-            if (obj == null || getClass() != obj.getClass())
+            }
+            if (obj == null || getClass() != obj.getClass()) {
                 return false;
+            }
             GuidedNode other = (GuidedNode) obj;
-            if (!Objects.equals(waypoint, other.waypoint))
+            if (waypoint == null) {
+                if (other.waypoint != null) {
+                    return false;
+                }
+            } else if (!waypoint.equals(other.waypoint)) {
                 return false;
+            }
             return true;
         }
 
         @Override
         public Iterable<AStarNode> getNeighbours() {
             PhTree<Waypoint> source = getParent() == null ? tree : treePlusDestinations;
-            PhRangeQuery<Waypoint> query = source.rangeQuery(
+            PhRangeQuery<Waypoint> rq = source.rangeQuery(
                     distance == -1 ? npc.getNavigator().getDefaultParameters().range() : distance,
                     waypoint.getLocation().getBlockX(), waypoint.getLocation().getBlockY(),
                     waypoint.getLocation().getBlockZ());
             List<AStarNode> neighbours = Lists.newArrayList();
-            query.forEachRemaining(wp -> neighbours.add(new GuidedNode(this, wp)));
+            rq.forEachRemaining(n -> neighbours.add(new GuidedNode(this, n)));
 
             return neighbours;
         }
 
         @Override
         public int hashCode() {
-            return 31 + (waypoint == null ? 0 : waypoint.hashCode());
+            return 31 + ((waypoint == null) ? 0 : waypoint.hashCode());
         }
 
         @Override
@@ -480,5 +480,5 @@ public class GuidedWaypointProvider implements EnumerableWaypointProvider {
         }
     }
 
-    private static AStarMachine<GuidedNode, GuidedPlan> ASTAR = AStarMachine.createWithDefaultStorage();
+    private static final AStarMachine<GuidedNode, GuidedPlan> ASTAR = AStarMachine.createWithDefaultStorage();
 }

@@ -15,11 +15,9 @@ import net.citizensnpcs.nms.v1_17_R1.util.NMSImpl;
 import net.citizensnpcs.npc.AbstractEntityController;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.Tag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -31,7 +29,9 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public class EggController extends AbstractEntityController {
-
+    public EggController() {
+        super(EntityEggNPC.class);
+    }
 
     @Override
     protected org.bukkit.entity.Entity createEntity(Location at, NPC npc) {
@@ -66,11 +66,6 @@ public class EggController extends AbstractEntityController {
         public EntityEggNPC(Level level, NPC npc, double d0, double d1, double d2) {
             super(level, d0, d1, d2);
             this.npc = (CitizensNPC) npc;
-        }
-
-        @Override
-        public boolean broadcastToPlayer(ServerPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.broadcastToPlayer(player));
         }
 
         @Override
@@ -139,8 +134,9 @@ public class EggController extends AbstractEntityController {
 
         @Override
         public boolean updateFluidHeightAndDoFluidPushing(Tag<Fluid> Tag, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.updateFluidHeightAndDoFluidPushing(Tag, d0);
+            }
             Vec3 old = getDeltaMovement().add(0, 0, 0);
             boolean res = super.updateFluidHeightAndDoFluidPushing(Tag, d0);
             if (!npc.isPushableByFluids()) {

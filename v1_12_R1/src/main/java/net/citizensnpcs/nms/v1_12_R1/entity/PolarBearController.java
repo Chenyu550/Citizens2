@@ -17,7 +17,6 @@ import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_12_R1.AxisAlignedBB;
 import net.minecraft.server.v1_12_R1.DamageSource;
 import net.minecraft.server.v1_12_R1.Entity;
-import net.minecraft.server.v1_12_R1.EntityPlayer;
 import net.minecraft.server.v1_12_R1.EntityPolarBear;
 import net.minecraft.server.v1_12_R1.EnumPistonReaction;
 import net.minecraft.server.v1_12_R1.NBTTagCompound;
@@ -62,23 +61,13 @@ public class PolarBearController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
         public int bg() {
             return NMS.getFallDistance(npc, super.bg());
-        }
-
-        @Override
-        public boolean bo() {
-            return npc == null ? super.bo() : npc.isPushableByFluids();
         }
 
         @Override
@@ -94,11 +83,6 @@ public class PolarBearController extends MobEntityController {
             if (npc != null) {
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
             }
-        }
-
-        @Override
-        public float ct() {
-            return NMS.getJumpPower(npc, super.ct());
         }
 
         @Override

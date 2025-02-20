@@ -16,7 +16,6 @@ import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_8_R3.AxisAlignedBB;
 import net.minecraft.server.v1_8_R3.Entity;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
 import net.minecraft.server.v1_8_R3.EntityWither;
 import net.minecraft.server.v1_8_R3.NBTTagCompound;
 import net.minecraft.server.v1_8_R3.World;
@@ -50,28 +49,13 @@ public class WitherController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
         public int aE() {
             return NMS.getFallDistance(npc, super.aE());
-        }
-
-        @Override
-        public boolean aL() {
-            return npc == null ? super.aL() : npc.isPushableByFluids();
-        }
-
-        @Override
-        public float bE() {
-            return NMS.getJumpPower(npc, super.bE());
         }
 
         @Override
@@ -100,9 +84,8 @@ public class WitherController extends MobEntityController {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.collide(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
         }
 
         @Override
@@ -126,6 +109,8 @@ public class WitherController extends MobEntityController {
             npc.update();
         }
 
+        
+
         @Override
         public void g(double x, double y, double z) {
             Vector vector = Util.callPushEvent(npc, x, y, z);
@@ -136,9 +121,8 @@ public class WitherController extends MobEntityController {
 
         @Override
         public CraftEntity getBukkitEntity() {
-            if (npc != null && !(bukkitEntity instanceof NPCHolder)) {
+            if (npc != null && !(bukkitEntity instanceof NPCHolder))
                 bukkitEntity = new WitherNPC(this);
-            }
             return super.getBukkitEntity();
         }
 

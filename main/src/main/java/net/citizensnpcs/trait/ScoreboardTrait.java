@@ -5,7 +5,6 @@ import java.util.Set;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Scoreboard;
@@ -13,7 +12,6 @@ import org.bukkit.scoreboard.Team;
 import org.bukkit.scoreboard.Team.Option;
 import org.bukkit.scoreboard.Team.OptionStatus;
 
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import net.citizensnpcs.Settings.Setting;
@@ -24,7 +22,6 @@ import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.api.persistence.Persist;
 import net.citizensnpcs.api.trait.Trait;
 import net.citizensnpcs.api.trait.TraitName;
-import net.citizensnpcs.api.util.SpigotUtil;
 import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 
@@ -37,20 +34,18 @@ public class ScoreboardTrait extends Trait {
     private final PerPlayerMetadata<Boolean> metadata;
     private ChatColor previousGlowingColor;
     @Persist
-    private Set<String> tags = new HashSet<>();
+    private Set<String> tags = new HashSet<String>();
 
     public ScoreboardTrait() {
         super("scoreboardtrait");
         metadata = CitizensAPI.getLocationLookup().<Boolean> registerMetadata("scoreboard", (meta, event) -> {
-            for (NPC npc : Iterables.concat(CitizensAPI.getNPCRegistries())) {
+            for (NPC npc : CitizensAPI.getNPCRegistry()) {
                 ScoreboardTrait trait = npc.getTraitNullable(ScoreboardTrait.class);
                 if (trait == null)
                     continue;
-
                 Team team = trait.getTeam();
                 if (team == null || meta.has(event.getPlayer().getUniqueId(), team.getName()))
                     continue;
-
                 NMS.sendTeamPacket(event.getPlayer(), team, 0);
                 meta.set(event.getPlayer().getUniqueId(), team.getName(), true);
             }
@@ -109,7 +104,7 @@ public class ScoreboardTrait extends Trait {
             }
             return;
         }
-        Runnable cleanup = () -> {
+        Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), () -> {
             if (npc.isSpawned())
                 return;
             try {
@@ -123,13 +118,7 @@ public class ScoreboardTrait extends Trait {
             } else {
                 team.removeEntry(name);
             }
-        };
-        if (reason == DespawnReason.REMOVAL || reason == DespawnReason.RELOAD) {
-            cleanup.run();
-        } else {
-            Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), cleanup,
-                    reason == DespawnReason.DEATH && npc.getEntity() instanceof LivingEntity ? 20 : 2);
-        }
+        }, reason == DespawnReason.DEATH && npc.getEntity() instanceof LivingEntity ? 20 : 2);
     }
 
     @Override
@@ -141,9 +130,12 @@ public class ScoreboardTrait extends Trait {
     public void onSpawn() {
         changed = true;
         if (SUPPORT_TAGS) {
-            tags.add("CITIZENS_NPC");
-            npc.getEntity().getScoreboardTags().clear();
-            npc.getEntity().getScoreboardTags().addAll(tags);
+            try {
+                npc.getEntity().getScoreboardTags().clear();
+                npc.getEntity().getScoreboardTags().addAll(tags);
+            } catch (NoSuchMethodError e) {
+                SUPPORT_TAGS = false;
+            }
         }
     }
 
@@ -151,16 +143,7 @@ public class ScoreboardTrait extends Trait {
         this.color = color;
     }
 
-    public void setTags(Set<String> tags) {
-        this.tags = tags;
-    }
-
     public void update() {
-        if (SUPPORT_TAGS) {
-            if (!npc.getEntity().getScoreboardTags().equals(tags)) {
-                tags = Sets.newHashSet(npc.getEntity().getScoreboardTags());
-            }
-        }
         String forceVisible = npc.data().<Object> get(NPC.Metadata.NAMEPLATE_VISIBLE, true).toString();
         boolean nameVisibility = !npc.requiresNameHologram()
                 && (forceVisible.equals("true") || forceVisible.equals("hover"));
@@ -177,20 +160,39 @@ public class ScoreboardTrait extends Trait {
             npc.data().remove(NPC.Metadata.SCOREBOARD_FAKE_TEAM_NAME);
             return;
         }
+
         if (npc.isSpawned()) {
             lastName = npc.getEntity() instanceof Player && npc.getEntity().getName() != null
                     ? npc.getEntity().getName()
                     : npc.getUniqueId().toString();
         }
-        if (SUPPORT_TEAM_SETOPTION) {
-            OptionStatus visibility = nameVisibility ? OptionStatus.ALWAYS : OptionStatus.NEVER;
-            if (visibility != team.getOption(Option.NAME_TAG_VISIBILITY)) {
-                changed = true;
+
+        if (SUPPORT_TAGS) {
+            try {
+                if (!npc.getEntity().getScoreboardTags().equals(tags)) {
+                    tags = Sets.newHashSet(npc.getEntity().getScoreboardTags());
+                }
+            } catch (NoSuchMethodError e) {
+                SUPPORT_TAGS = false;
             }
-            team.setOption(Option.NAME_TAG_VISIBILITY, visibility);
+        }
+
+        if (SUPPORT_TEAM_SETOPTION) {
+            try {
+                OptionStatus visibility = nameVisibility ? OptionStatus.ALWAYS : OptionStatus.NEVER;
+                if (visibility != team.getOption(Option.NAME_TAG_VISIBILITY)) {
+                    changed = true;
+                }
+                team.setOption(Option.NAME_TAG_VISIBILITY, visibility);
+            } catch (NoSuchMethodError e) {
+                SUPPORT_TEAM_SETOPTION = false;
+            } catch (NoClassDefFoundError e) {
+                SUPPORT_TEAM_SETOPTION = false;
+            }
         } else {
             NMS.setTeamNameTagVisible(team, nameVisibility);
         }
+
         if (SUPPORT_COLLIDABLE_SETOPTION) {
             try {
                 OptionStatus collide = npc.data().<Boolean> get(NPC.Metadata.COLLIDABLE, !npc.isProtected())
@@ -206,27 +208,38 @@ public class ScoreboardTrait extends Trait {
                 SUPPORT_COLLIDABLE_SETOPTION = false;
             }
         }
+
         if (color != null) {
+            if (SUPPORT_GLOWING_COLOR && Util.getMinecraftRevision().contains("1_12_R1")) {
+                SUPPORT_GLOWING_COLOR = false;
+            }
             if (SUPPORT_GLOWING_COLOR) {
-                if (team.getColor() == null || previousGlowingColor == null
-                        || previousGlowingColor != null && color != previousGlowingColor) {
-                    team.setColor(color);
+                try {
+                    if (team.getColor() == null || previousGlowingColor == null
+                            || (previousGlowingColor != null && color != previousGlowingColor)) {
+                        team.setColor(color);
+                        previousGlowingColor = color;
+                        changed = true;
+                    }
+                } catch (NoSuchMethodError err) {
+                    SUPPORT_GLOWING_COLOR = false;
+                }
+            } else {
+                if (team.getPrefix() == null || team.getPrefix().length() == 0 || previousGlowingColor == null
+                        || (previousGlowingColor != null
+                                && !team.getPrefix().equals(previousGlowingColor.toString()))) {
+                    team.setPrefix(color.toString());
                     previousGlowingColor = color;
                     changed = true;
                 }
-            } else if (team.getPrefix() == null || team.getPrefix().length() == 0 || previousGlowingColor == null
-                    || previousGlowingColor != null && !team.getPrefix().equals(previousGlowingColor.toString())) {
-                team.setPrefix(color.toString());
-                previousGlowingColor = color;
-                changed = true;
             }
         }
+
         if (!changed)
             return;
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (player.hasMetadata("NPC"))
                 continue;
-
             if (metadata.has(player.getUniqueId(), team.getName())) {
                 NMS.sendTeamPacket(player, team, 2);
             } else {
@@ -234,32 +247,10 @@ public class ScoreboardTrait extends Trait {
                 metadata.set(player.getUniqueId(), team.getName(), true);
             }
         }
-        changed = false;
     }
 
     private static boolean SUPPORT_COLLIDABLE_SETOPTION = true;
-    private static boolean SUPPORT_GLOWING_COLOR = false;
-    private static boolean SUPPORT_TAGS = false;
+    private static boolean SUPPORT_GLOWING_COLOR = true;
+    private static boolean SUPPORT_TAGS = true;
     private static boolean SUPPORT_TEAM_SETOPTION = true;
-    static {
-        try {
-            Entity.class.getDeclaredMethod("getScoreboardTags");
-            SUPPORT_TAGS = true;
-        } catch (NoSuchMethodException | SecurityException e) {
-        }
-        try {
-            Team.class.getDeclaredMethod("getColor");
-            if (!SpigotUtil.getMinecraftPackage().contains("1_12_R1")) {
-                SUPPORT_GLOWING_COLOR = true;
-            }
-        } catch (NoSuchMethodException | SecurityException e) {
-        }
-        try {
-            OptionStatus status;
-        } catch (NoSuchMethodError e) {
-            SUPPORT_TEAM_SETOPTION = false;
-        } catch (NoClassDefFoundError e) {
-            SUPPORT_TEAM_SETOPTION = false;
-        }
-    }
 }

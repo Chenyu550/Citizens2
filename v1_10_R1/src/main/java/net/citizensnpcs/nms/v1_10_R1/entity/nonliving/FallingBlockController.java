@@ -17,19 +17,19 @@ import net.citizensnpcs.nms.v1_10_R1.util.NMSImpl;
 import net.citizensnpcs.npc.AbstractEntityController;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_10_R1.AxisAlignedBB;
 import net.minecraft.server.v1_10_R1.Block;
 import net.minecraft.server.v1_10_R1.EntityFallingBlock;
-import net.minecraft.server.v1_10_R1.EntityPlayer;
 import net.minecraft.server.v1_10_R1.IBlockData;
 import net.minecraft.server.v1_10_R1.NBTTagCompound;
 import net.minecraft.server.v1_10_R1.World;
 import net.minecraft.server.v1_10_R1.WorldServer;
 
 public class FallingBlockController extends AbstractEntityController {
-
+    public FallingBlockController() {
+        super(EntityFallingBlockNPC.class);
+    }
 
     @Override
     protected Entity createEntity(Location at, NPC npc) {
@@ -65,16 +65,6 @@ public class FallingBlockController extends AbstractEntityController {
         @Override
         public void a(AxisAlignedBB bb) {
             super.a(NMSBoundingBox.makeBB(npc, bb));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
-        public boolean bg() {
-            return npc == null ? super.bg() : npc.isPushableByFluids();
         }
 
         @Override

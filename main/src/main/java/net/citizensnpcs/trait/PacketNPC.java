@@ -64,8 +64,9 @@ public class PacketNPC extends Trait {
     }
 
     public EntityController wrap(EntityController controller) {
-        if (!(controller instanceof PacketController))
+        if (!(controller instanceof PacketController)) {
             return new PacketController(controller);
+        }
         return controller;
     }
 
@@ -73,7 +74,7 @@ public class PacketNPC extends Trait {
         private final EntityController base;
 
         public PacketController(EntityController controller) {
-            base = controller;
+            this.base = controller;
         }
 
         @Override
@@ -112,7 +113,6 @@ public class PacketNPC extends Trait {
         public boolean spawn(Location at) {
             NMS.setLocationDirectly(base.getBukkitEntity(), at);
             PlayerUpdateTask.registerPlayer(getBukkitEntity());
-            System.out.println("SPAWN");
             return true;
         }
     }

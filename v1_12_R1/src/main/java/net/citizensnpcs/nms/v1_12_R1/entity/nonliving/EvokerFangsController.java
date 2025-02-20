@@ -14,12 +14,10 @@ import net.citizensnpcs.nms.v1_12_R1.entity.MobEntityController;
 import net.citizensnpcs.nms.v1_12_R1.util.NMSBoundingBox;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_12_R1.AxisAlignedBB;
 import net.minecraft.server.v1_12_R1.EntityEvokerFangs;
 import net.minecraft.server.v1_12_R1.EntityHuman;
-import net.minecraft.server.v1_12_R1.EntityPlayer;
 import net.minecraft.server.v1_12_R1.EnumHand;
 import net.minecraft.server.v1_12_R1.EnumInteractionResult;
 import net.minecraft.server.v1_12_R1.EnumPistonReaction;
@@ -56,17 +54,13 @@ public class EvokerFangsController extends MobEntityController {
 
         @Override
         public EnumInteractionResult a(EntityHuman entityhuman, Vec3D vec3d, EnumHand enumhand) {
-            if (npc == null)
+            if (npc == null) {
                 return super.a(entityhuman, vec3d, enumhand);
+            }
             PlayerInteractEntityEvent event = new PlayerInteractEntityEvent((Player) entityhuman.getBukkitEntity(),
                     getBukkitEntity());
             Bukkit.getPluginManager().callEvent(event);
             return event.isCancelled() ? EnumInteractionResult.FAIL : EnumInteractionResult.SUCCESS;
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
@@ -75,11 +69,6 @@ public class EvokerFangsController extends MobEntityController {
             if (npc != null) {
                 npc.update();
             }
-        }
-
-        @Override
-        public boolean bo() {
-            return npc == null ? super.bo() : npc.isPushableByFluids();
         }
 
         @Override

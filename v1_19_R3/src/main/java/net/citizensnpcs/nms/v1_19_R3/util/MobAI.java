@@ -168,8 +168,9 @@ public interface MobAI {
                     mob.getJumpControl().tick();
                 }
             };
-        } else if (handle instanceof MobAI)
+        } else if (handle instanceof MobAI) {
             return (MobAI) handle;
+        }
         return null;
     }
 }

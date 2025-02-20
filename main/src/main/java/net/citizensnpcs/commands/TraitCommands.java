@@ -1,8 +1,6 @@
 package net.citizensnpcs.commands;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -11,12 +9,13 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
-import net.citizensnpcs.Citizens;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.command.Command;
+import net.citizensnpcs.api.command.CommandConfigurable;
 import net.citizensnpcs.api.command.CommandContext;
 import net.citizensnpcs.api.command.Requirements;
 import net.citizensnpcs.api.command.exception.CommandException;
+import net.citizensnpcs.api.command.exception.NoPermissionsException;
 import net.citizensnpcs.api.event.NPCTraitCommandAttachEvent;
 import net.citizensnpcs.api.event.NPCTraitCommandDetachEvent;
 import net.citizensnpcs.api.npc.NPC;
@@ -27,16 +26,10 @@ import net.citizensnpcs.util.StringHelper;
 
 @Requirements(selected = true, ownership = true)
 public class TraitCommands {
-    private final Citizens plugin;
-
-    public TraitCommands(Citizens plugin) {
-        this.plugin = plugin;
-    }
-
     @Command(
             aliases = { "trait" },
             usage = "add [trait name]...",
-            desc = "",
+            desc = "Adds traits to the NPC",
             modifiers = { "add", "a" },
             min = 2,
             permission = "citizens.npc.trait")
@@ -49,6 +42,7 @@ public class TraitCommands {
                 failed.add(String.format("%s: No permission", traitName));
                 continue;
             }
+
             Class<? extends Trait> clazz = CitizensAPI.getTraitFactory().getTraitClass(traitName);
             if (clazz == null) {
                 failed.add(String.format("%s: Trait not found", traitName));
@@ -75,23 +69,33 @@ public class TraitCommands {
     }
 
     @Command(
-            aliases = { "trait" },
-            usage = "clearsaves [trait name]",
-            desc = "",
-            modifiers = { "clearsaves" },
-            min = 2,
-            permission = "citizens.npc.trait.clearsaves")
-    public void clearsaves(CommandContext args, CommandSender sender, NPC npc) throws CommandException {
-        List<String> added = Splitter.on(',').splitToStream(args.getJoinedStrings(1))
-                .map(s -> s.toLowerCase(Locale.ROOT)).collect(Collectors.toList());
-        plugin.getDefaultNPCDataStore().clearTraitData(added);
-        Messaging.sendTr(sender, Messages.TRAIT_DATA_CLEARED, Joiner.on(", ").join(added));
+            aliases = { "traitc", "trc" },
+            usage = "[trait name] (flags)",
+            desc = "Configures a trait",
+            modifiers = { "*" },
+            min = 1,
+            flags = "*",
+            permission = "citizens.npc.trait-configure")
+    public void configure(CommandContext args, CommandSender sender, NPC npc) throws CommandException {
+        String traitName = args.getString(0);
+        if (!sender.hasPermission("citizens.npc.trait-configure." + traitName)
+                && !sender.hasPermission("citizens.npc.trait-configure.*"))
+            throw new NoPermissionsException();
+        Class<? extends Trait> clazz = CitizensAPI.getTraitFactory().getTraitClass(args.getString(0));
+        if (clazz == null)
+            throw new CommandException(Messages.TRAIT_NOT_FOUND);
+        if (!CommandConfigurable.class.isAssignableFrom(clazz))
+            throw new CommandException(Messages.TRAIT_NOT_CONFIGURABLE);
+        if (!npc.hasTrait(clazz))
+            throw new CommandException(Messages.TRAIT_NOT_FOUND_ON_NPC);
+        CommandConfigurable trait = (CommandConfigurable) npc.getOrAddTrait(clazz);
+        trait.configure(args);
     }
 
     @Command(
             aliases = { "trait" },
             usage = "remove [trait names]...",
-            desc = "",
+            desc = "Removes traits on the NPC",
             modifiers = { "remove", "rem", "r" },
             min = 2,
             permission = "citizens.npc.trait")
@@ -104,6 +108,7 @@ public class TraitCommands {
                 failed.add(String.format("%s: No permission", traitName));
                 continue;
             }
+
             Class<? extends Trait> clazz = CitizensAPI.getTraitFactory().getTraitClass(traitName);
             if (clazz == null) {
                 failed.add(String.format("%s: Trait not found", traitName));
@@ -117,12 +122,10 @@ public class TraitCommands {
             removeTrait(npc, clazz, sender);
             removed.add(StringHelper.wrap(traitName));
         }
-        if (removed.size() > 0) {
+        if (removed.size() > 0)
             Messaging.sendTr(sender, Messages.TRAITS_REMOVED, Joiner.on(", ").join(removed));
-        }
-        if (failed.size() > 0) {
+        if (failed.size() > 0)
             Messaging.sendTr(sender, Messages.FAILED_TO_REMOVE, Joiner.on(", ").join(failed));
-        }
     }
 
     private void removeTrait(NPC npc, Class<? extends Trait> clazz, CommandSender sender) {
@@ -133,7 +136,7 @@ public class TraitCommands {
     @Command(
             aliases = { "trait" },
             usage = "[trait name], [trait name]...",
-            desc = "",
+            desc = "Toggles traits on the NPC",
             modifiers = { "*" },
             min = 1,
             permission = "citizens.npc.trait")
@@ -147,6 +150,7 @@ public class TraitCommands {
                 failed.add(String.format("%s: No permission", traitName));
                 continue;
             }
+
             Class<? extends Trait> clazz = CitizensAPI.getTraitFactory().getTraitClass(traitName);
             if (clazz == null) {
                 failed.add(String.format("%s: Trait not found", traitName));
@@ -168,7 +172,7 @@ public class TraitCommands {
             Messaging.sendTr(sender, Messages.TRAITS_REMOVED, Joiner.on(", ").join(removed));
         }
         if (failed.size() > 0) {
-            Messaging.send(sender, "Failed to toggle traits", Joiner.on(", ").join(failed));
+            Messaging.sendTr(sender, Messages.TRAITS_FAILED_TO_CHANGE, Joiner.on(", ").join(failed));
         }
     }
 }

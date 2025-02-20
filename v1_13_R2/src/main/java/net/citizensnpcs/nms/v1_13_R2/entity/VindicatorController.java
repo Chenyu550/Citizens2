@@ -20,7 +20,6 @@ import net.minecraft.server.v1_13_R2.DamageSource;
 import net.minecraft.server.v1_13_R2.Entity;
 import net.minecraft.server.v1_13_R2.EntityBoat;
 import net.minecraft.server.v1_13_R2.EntityMinecartAbstract;
-import net.minecraft.server.v1_13_R2.EntityPlayer;
 import net.minecraft.server.v1_13_R2.EntityVindicator;
 import net.minecraft.server.v1_13_R2.EnumPistonReaction;
 import net.minecraft.server.v1_13_R2.FluidType;
@@ -75,13 +74,8 @@ public class VindicatorController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
@@ -95,8 +89,9 @@ public class VindicatorController extends MobEntityController {
 
         @Override
         public boolean b(Tag<FluidType> tag) {
-            if (npc == null)
+            if (npc == null) {
                 return super.b(tag);
+            }
             double mx = motX;
             double my = motY;
             double mz = motZ;
@@ -119,11 +114,6 @@ public class VindicatorController extends MobEntityController {
             if (npc == null || !npc.isFlyable()) {
                 super.c(f, f1);
             }
-        }
-
-        @Override
-        public float cG() {
-            return NMS.getJumpPower(npc, super.cG());
         }
 
         @Override
@@ -166,9 +156,8 @@ public class VindicatorController extends MobEntityController {
 
         @Override
         public CraftEntity getBukkitEntity() {
-            if (npc != null && !(bukkitEntity instanceof NPCHolder)) {
+            if (npc != null && !(bukkitEntity instanceof NPCHolder))
                 bukkitEntity = new VindicatorNPC(this);
-            }
             return super.getBukkitEntity();
         }
 
@@ -204,17 +193,19 @@ public class VindicatorController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
 
         @Override
         public boolean z_() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.z_();
-            else
+            } else {
                 return false;
+            }
         }
     }
 

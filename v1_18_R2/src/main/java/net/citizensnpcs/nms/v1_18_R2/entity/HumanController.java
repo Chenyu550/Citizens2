@@ -23,6 +23,7 @@ import net.minecraft.server.level.ServerLevel;
 
 public class HumanController extends AbstractEntityController {
     public HumanController() {
+        super();
     }
 
     @Override
@@ -44,11 +45,16 @@ public class HumanController extends AbstractEntityController {
         if (skin != null) {
             skin.apply(handle);
         }
-        Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), () -> {
-            if (getBukkitEntity() == null || !getBukkitEntity().isValid()
-                    || getBukkitEntity() != handle.getBukkitEntity())
-                return;
-            NMS.addOrRemoveFromPlayerList(getBukkitEntity(), npc.shouldRemoveFromPlayerList());
+        Bukkit.getScheduler().scheduleSyncDelayedTask(CitizensAPI.getPlugin(), new Runnable() {
+            @Override
+            public void run() {
+                if (getBukkitEntity() == null || !getBukkitEntity().isValid()
+                        || getBukkitEntity() != handle.getBukkitEntity())
+                    return;
+                boolean removeFromPlayerList = npc.data().get(NPC.Metadata.REMOVE_FROM_PLAYERLIST,
+                        Setting.REMOVE_PLAYERS_FROM_PLAYER_LIST.asBoolean());
+                NMS.addOrRemoveFromPlayerList(getBukkitEntity(), removeFromPlayerList);
+            }
         }, 20);
         handle.getBukkitEntity().setSleepingIgnored(true);
         return handle.getBukkitEntity();

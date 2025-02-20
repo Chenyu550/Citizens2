@@ -35,7 +35,7 @@ public class OcelotModifiers extends Trait {
     }
 
     public void setSitting(boolean sit) {
-        sitting = sit;
+        this.sitting = sit;
         updateModifiers();
     }
 

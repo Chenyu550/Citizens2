@@ -15,7 +15,6 @@ import net.citizensnpcs.nms.v1_19_R3.util.NMSImpl;
 import net.citizensnpcs.nms.v1_19_R3.util.PitchableLookControl;
 import net.citizensnpcs.npc.AbstractEntityController;
 import net.citizensnpcs.trait.ScoreboardTrait;
-import net.citizensnpcs.util.NMS;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.control.LookControl;
@@ -25,7 +24,7 @@ public abstract class MobEntityController extends AbstractEntityController {
     private final Class<?> clazz;
 
     protected MobEntityController(Class<?> clazz) {
-        NMS.registerEntityClass(clazz, null);
+        super(clazz);
         this.clazz = clazz;
     }
 
@@ -54,6 +53,7 @@ public abstract class MobEntityController extends AbstractEntityController {
                 npc.getOrAddTrait(ScoreboardTrait.class).createTeam(npc.getUniqueId().toString());
             }
         }
+
         return entity.getBukkitEntity();
     }
 
@@ -78,5 +78,5 @@ public abstract class MobEntityController extends AbstractEntityController {
         }
     }
 
-    private static final Map<Class<?>, Constructor<?>> CONSTRUCTOR_CACHE = new WeakHashMap<>();
+    private static final Map<Class<?>, Constructor<?>> CONSTRUCTOR_CACHE = new WeakHashMap<Class<?>, Constructor<?>>();
 }

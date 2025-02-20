@@ -4,22 +4,18 @@ import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import org.bukkit.configuration.ConfigurationSection;
 
 import com.google.common.collect.Lists;
 
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.util.DataKey;
-import net.citizensnpcs.api.util.MemoryDataKey;
 import net.citizensnpcs.api.util.Messaging;
 import net.citizensnpcs.api.util.SpigotUtil;
 import net.citizensnpcs.api.util.Storage;
 import net.citizensnpcs.api.util.YamlStorage;
+import net.citizensnpcs.api.util.YamlStorage.YamlKey;
 import net.citizensnpcs.util.Util;
 
 public class Settings {
@@ -98,8 +94,7 @@ public class Settings {
                 "general.debug-chunk-loads", false),
         DEBUG_FILE("Send Citizens debug output to a specific file", "general.debug-file", ""),
         DEBUG_MODE("Enable Citizens debugging", "general.debug-mode", false),
-        DEBUG_PATHFINDING("Debug pathfinding by showing fake target blocks", "npc.pathfinding.debug",
-                "npc.pathfinding.debug-paths", false),
+        DEBUG_PATHFINDING("Debug pathfinding by showing fake target blocks", "general.debug-pathfinding", false),
         DEFAULT_BLOCK_BREAKER_RADIUS(
                 "The default distance radius for block breaking, in blocks<br>The NPC will pathfind to be this far away from the target block if greater than 0",
                 "npc.defaults.block-breaker-radius", "npc.default.block-breaker-radius", -1),
@@ -113,12 +108,6 @@ public class Settings {
         DEFAULT_DISTANCE_MARGIN(
                 "The default MOVEMENT distance in blocks where the NPC will move to before considering a path finished<br>Note: this is different from the PATHFINDING distance which is specified by path-distance-margin",
                 "npc.pathfinding.default-distance-margin", 1),
-        DEFAULT_HOLOGRAM_BACKGROUND_COLOR(
-                "The default background color for holograms, specified as an RGB or RGBA value<br>For example 0,255,123 would be green and 255,255,255,255 would be transparent",
-                "npc.hologram.default-background-color", ""),
-        DEFAULT_HOLOGRAM_RENDERER(
-                "The default renderer for holograms, must be one of the following:<br>interaction - requires 1.19+, matches nametags more closely than display<br>display - allows for different colored backgrounds<br>display_vehicle - mounts the display on the NPC<br>areaeffectcloud - the safest option<br>armorstand - the second safest option, has a hitbox clientside<br>armorstand_vehicle - mounts the armorstand on the NPC, only useful for nameplates",
-                "npc.hologram.default-renderer", "display"),
         DEFAULT_LOOK_CLOSE("Enable look close by default", "npc.default.look-close.enabled", false),
         DEFAULT_LOOK_CLOSE_RANGE("Default look close range in blocks", "npc.default.look-close.range", 10),
         DEFAULT_NPC_HOLOGRAM_LINE_HEIGHT("Default distance between hologram lines", "npc.hologram.default-line-height",
@@ -132,7 +121,7 @@ public class Settings {
         DEFAULT_PATHFINDER_UPDATE_PATH_RATE("How often to repathfind when targeting a dynamic target such as an entity",
                 "npc.pathfinding.update-path-rate", "1s"),
         DEFAULT_PATHFINDING_RANGE(
-                "The default pathfinding range in blocks<br>Shouldn't be set too high to avoid lag - try pathfinding in shorter segments instead",
+                "The default pathfinding range in blocks<br>Shouldn't be set too high to avoid lag - try pathfinding in sections instead",
                 "npc.default.pathfinding.range", "npc.pathfinding.default-range-blocks", 75F),
         DEFAULT_RANDOM_LOOK_CLOSE("Default random look close enabled", "npc.default.look-close.random-look-enabled",
                 false),
@@ -142,39 +131,27 @@ public class Settings {
         DEFAULT_REALISTIC_LOOKING("Default to checking for line of sight when looking at players",
                 "npc.default.realistic-looking", "npc.default.look-close.realistic-looking", false),
         DEFAULT_SPAWN_NODAMAGE_DURATION(
-                "Default duration of invincibility on entity spawn, Minecraft default is 20 ticks",
-                "npc.default.spawn-nodamage-duration", "npc.default.spawn-invincibility-duration", "1s"),
+                "Default duration of no-damage-ticks on entity spawn, Minecraft default is 20 ticks",
+                "npc.default.spawn-nodamage-ticks", "npc.default.spawn-nodamage-duration", "1s"),
         DEFAULT_STATIONARY_DURATION(
                 "Default duration in the same location before the NPC considers itself stuck and failed pathfinding",
-                "npc.default.stationary-duration", "npc.pathfinding.default-stationary-duration", -1),
+                "npc.default.stationary-ticks", "npc.default.stationary-duration", -1),
         DEFAULT_STRAIGHT_LINE_TARGETING_DISTANCE(
                 "The distance in blocks where the NPC will switch to walking straight towards the target instead of pathfinding<br>Currently only for dynamic targets like entities",
                 "npc.pathfinding.straight-line-targeting-distance", 5),
         DEFAULT_STUCK_ACTION(
-                "The default action to perform when NPCs are unable to find a path or are stuck in the same block for too long<br>Supported options are: 'teleport to destination' or 'none'",
+                "The default action to perform when NPCs are unable to find a path or are stuck in the same block for too long. Supported options are: 'teleport to destination' or 'none'",
                 "npc.pathfinding.default-stuck-action", "none"),
         DEFAULT_TALK_CLOSE("npc.default.talk-close.enabled", false),
         DEFAULT_TALK_CLOSE_RANGE("Default talk close range in blocks", "npc.default.talk-close.range", 5),
-        DEFAULT_TEXT("npc.default.talk-close.text", "Hi, I'm <npc>!") {
-            @SuppressWarnings("unchecked")
+        DEFAULT_TEXT("npc.default.talk-close.text.0", "Hi, I'm <npc>!") {
             @Override
             public void loadFromKey(DataKey root) {
-                List<String> list = new ArrayList<>();
-                Object raw = root.getRaw(path);
-                if (raw instanceof ConfigurationSection || raw instanceof Map) {
-                    for (DataKey key : root.getRelative(path).getSubKeys()) {
-                        list.add(key.getString(""));
-                    }
-                } else if (raw instanceof Collection) {
-                    list.addAll((Collection<? extends String>) raw);
+                List<String> list = new ArrayList<String>();
+                for (DataKey key : root.getRelative("npc.default.talk-close.text").getSubKeys()) {
+                    list.add(key.getString(""));
                 }
                 value = list;
-            }
-
-            @Override
-            protected void setAtKey(DataKey root) {
-                root.setRaw(path, Lists.newArrayList(value));
-                setComments(root);
             }
         },
         DEFAULT_TEXT_DELAY_MAX("Default maximum delay when talking to players",
@@ -187,9 +164,11 @@ public class Settings {
                 "npc.default.look-close.disable-while-navigating", true),
         DISABLE_MC_NAVIGATION_FALLBACK(
                 "Minecraft will pick a 'close-enough' location when pathfinding to a block if it can't find a direct path<br>Disabled by default",
-                "npc.pathfinding.disable-mc-fallback-navigation",
-                "npc.pathfinding.minecraft.disable-fallback-navigation", true),
+                "npc.pathfinding.disable-mc-fallback-navigation", true),
         DISABLE_TABLIST("Whether to remove NPCs from the tablist", "npc.tablist.disable", true),
+        DISPLAY_ENTITY_HOLOGRAMS(
+                "Whether to use display entities for holograms by default. In theory more performant than armor stands. Requires 1.19.4 or above. Defaults to false",
+                "npc.hologram.use-display-entities", false),
         ENTITY_SPAWN_WAIT_DURATION(
                 "Entities are no longer spawned until the chunks are loaded from disk<br>Wait for chunk loading for one second by default, increase if your disk is slow",
                 "general.entity-spawn-wait-ticks", "general.wait-for-entity-spawn", "1s"),
@@ -197,19 +176,13 @@ public class Settings {
         FOLLOW_ACROSS_WORLDS("Whether /npc follow will teleport across worlds to follow its target",
                 "npc.follow.teleport-across-worlds", false),
         HIGHLIGHT_COLOUR("general.color-scheme.message-highlight", "yellow"),
-        HOLOGRAM_ALWAYS_UPDATE_POSITION("Whether to always update the hologram position every tick",
-                "npc.hologram.always-update-position", false),
         HOLOGRAM_UPDATE_RATE("How often to update hologram names (including placeholders)",
                 "npc.hologram.update-rate-ticks", "npc.hologram.update-rate", "1s"),
-        HOOK_PROTOCOLLIB("Whether to hook into ProtocolLib", "general.interop.protocollib", true),
         INITIAL_PLAYER_JOIN_SKIN_PACKET_DELAY("How long to wait before sending skins to joined players",
                 "npc.skins.player-join-update-delay-ticks", "npc.skins.player-join-update-delay", "1s"),
         KEEP_CHUNKS_LOADED("Whether to keep NPC chunks loaded", "npc.chunks.always-keep-loaded", false),
-        LOCALE("Controls translation files - defaults to your system language, set to 'en' if English required",
+        LOCALE("Controls translation files - defaults to your system language, set to en if English required",
                 "general.translation.locale", ""),
-        MAX_CONTROLLABLE_FLIGHT_SPEED(
-                "The maximum flying speed that controllable NPCs can reach, in Minecraft velocity units",
-                "npc.controllable.max-flying-speed", 0.75),
         MAX_CONTROLLABLE_GROUND_SPEED("The maximum speed that controllable NPCs can reach, in Minecraft velocity units",
                 "npc.controllable.max-ground-speed", 0.5),
         MAX_NPC_LIMIT_CHECKS(
@@ -218,11 +191,13 @@ public class Settings {
         MAX_NPC_SKIN_RETRIES(
                 "How many times to try load NPC skins (due to Minecraft rate-limiting skin requests, should rarely be less than 5",
                 "npc.skins.max-retries", -1),
+        MAX_PACKET_ENTRIES("npc.limits.max-packet-entries", 15),
+        MAX_TEXT_RANGE("The maximum range in blocks for chatting", "npc.chat.options.max-text-range", 500),
         MAXIMUM_ASTAR_ITERATIONS("The maximum number of blocks to check when pathfinding",
                 "npc.pathfinding.maximum-new-pathfinder-iterations", "npc.pathfinding.new-finder.maximum-iterations",
-                1024),
-        MAXIMUM_VISITED_NODES("The maximum number of blocks to check", "npc.pathfinding.maximum-visited-blocks",
-                "npc.pathfinding.minecraft.max-visited-blocks", 1024),
+                768),
+        MAXIMUM_VISITED_NODES("The maximum number of blocks to check when MINECRAFT pathfinding",
+                "npc.pathfinding.maximum-visited-nodes", "npc.pathfinding.maximum-visited-blocks", 768),
         MESSAGE_COLOUR("general.color-scheme.message", "<green>"),
         NEW_PATHFINDER_CHECK_BOUNDING_BOXES(
                 "Whether to check bounding boxes when pathfinding such as between fences, inside doors, or other half-blocks",
@@ -245,42 +220,42 @@ public class Settings {
                 "Please wait for {minutes} minutes and {seconds_over} seconds."),
         NPC_COMMAND_ON_GLOBAL_COOLDOWN_MESSAGE("npc.commands.error-messages.on-global-cooldown",
                 "Please wait for {minutes} minutes and {seconds_over} seconds."),
-        NPC_COST("The default cost to create an NPC", "economy.npc.cost", "npc.defaults.npc-cost", 100D),
+        NPC_COST("The default cost to create an NPC", "economy.npc.cost", 100D),
         NPC_SKIN_FETCH_DEFAULT(
-                "Whether to try and look for the player skin for all new NPCs<br>If this is set to false and you create an NPC named Dinnerbone, the NPC will have the default (steve/alex/etc) skin rather than trying to fetch the Dinnerbone skin",
+                "Whether to try and look for the player skin for all new NPCs. If this is set to false and you create an NPC named Dinnerbone, the NPC will have the default (steve/alex/...) skin rather than trying to fetch the Dinnerbone skin.",
                 "npc.skins.try-fetch-default-skin", true),
         NPC_SKIN_RETRY_DELAY("How long before retrying skin requests (typically due to Mojang rate limiting)",
                 "npc.skins.retry-delay", "5s"),
         NPC_SKIN_ROTATION_UPDATE_DEGREES("npc.skins.rotation-update-degrees", 90f),
-        NPC_SKIN_USE_LATEST("Whether to fetch new skins from Minecraft every so often",
-                "npc.skins.use-latest-by-default", false),
-        NPC_SKIN_VIEW_DISTANCE("View distance in blocks", "npc.skins.view-distance", 100),
+        NPC_SKIN_USE_LATEST("npc.skins.use-latest-by-default", false),
+        NPC_SKIN_VIEW_DISTANCE("npc.skins.view-distance", 100D),
         NPC_WATER_SPEED_MODIFIER("Movement speed percentage increase while in water",
                 "npc.movement.water-speed-modifier", 1.15F),
         PACKET_HOLOGRAMS("Use packet NPCs for name holograms (experimental)", "npc.use-packet-holograms", false),
         PACKET_UPDATE_DELAY("npc.packets.update-delay", 30),
         PATHFINDER_FALL_DISTANCE(
-                "The default allowed maximum fall distance when pathfinding, set to -1 to use the default value",
+                "The default allowed maximum fall distance when pathfinding, set to -1 to use the Minecraft value",
                 "npc.pathfinding.allowed-fall-distance", -1),
-        PLACEHOLDER_SKIN_UPDATE_FREQUENCY("How often to update skin placeholders",
+        PLACEHOLDER_SKIN_UPDATE_FREQUENCY("How often to update placeholders",
                 "npc.skins.placeholder-update-frequency-ticks", "npc.skins.placeholder-update-frequency", "5m"),
         PLAYER_TELEPORT_DELAY("npc.delay-player-teleport-ticks", "npc.delay-player-teleport", -1),
         REMOVE_PLAYERS_FROM_PLAYER_LIST("Whether to remove NPCs from the Java list of players",
                 "npc.player.remove-from-list", true),
         RESET_YAW_ON_SPAWN(
-                "Whether to reset NPC yaw on spawn<br>Currently this is implemented by an arm swing animation due to Minecraft limitations",
+                "Whether to reset NPC yaw on spawn. Currently this is implemented by an arm swing animation due to Minecraft limitations.",
                 "npc.default.reset-yaw-on-spawn", true),
         RESOURCE_PACK_PATH("The resource pack path to save resource packs to", "general.resource-pack-path",
                 "plugins/Citizens/resourcepack"),
-        SAVE_TASK_FREQUENCY("How often to save NPCs to disk", "storage.save-task.delay", "storage.save-task-frequency",
-                "1hr"),
+        SAVE_TASK_DELAY("How often to save NPCs to disk", "storage.save-task.delay", "1hr"),
         SELECTION_ITEM("The default item in hand to select an NPC", "npc.selection.item", "stick"),
         SELECTION_MESSAGE("npc.selection.message", "Selected [[<npc>]] (ID [[<id>]])."),
         SERVER_OWNS_NPCS("Whether the server owns NPCs rather than individual players", "npc.server-ownership", false),
         SHOP_GLOBAL_VIEW_PERMISSION(
-                "The global view permission that players need to view any NPC shop<br>Defaults to empty (no permission required).",
-                "npc.shops.global-view-permission", "npc.defaults.shops.global-view-permission", ""),
+                "The global view permission that players need to view any NPC shop. Defaults to empty (no permission required).",
+                "npc.shops.global-view-permission", ""),
         STORAGE_FILE("storage.file", "saves.yml"),
+        STORAGE_TYPE("Although technically Citizens can use NBT storage, it is not well tested and YAML is recommended",
+                "storage.type", "yaml"),
         TABLIST_REMOVE_PACKET_DELAY("How long to wait before sending the tablist remove packet",
                 "npc.tablist.remove-packet-delay", "1t"),
         TALK_CLOSE_TO_NPCS("Whether to talk to NPCs (and therefore bystanders) as well as players",
@@ -289,15 +264,15 @@ public class Settings {
         USE_BOAT_CONTROLS("Whether to change vehicle direction with movement instead of strafe controls",
                 "npc.controllable.use-boat-controls", true),
         USE_NEW_PATHFINDER(
-                "Whether to use the Citizens pathfinder instead of the Minecraft pathfinder<br>Much more flexible, but may have different performance to Minecraft's pathfinder",
+                "Whether to use the Citizens pathfinder instead of the Minecraft pathfinder<br>Much more flexible, but may have different performance characteristics",
                 "npc.pathfinding.use-new-finder", false),
-        USE_SCOREBOARD_TEAMS("npc.scoreboard-teams.enable", "npc.defaults.enable-scoreboard-teams", true),
-        WARN_ON_RELOAD("general.reload-warning-enabled", true),;
+        USE_SCOREBOARD_TEAMS("npc.scoreboard-teams.enable", true),
+        WARN_ON_RELOAD("general.reload-warning-enabled", true);
 
-        private String comments;
+        protected String comments;
         private Duration duration;
-        private String migrate;
-        protected final String path;
+        protected String migrate;
+        protected String path;
         protected Object value;
 
         Setting(String path, Object value) {
@@ -305,11 +280,11 @@ public class Settings {
             this.value = value;
         }
 
-        Setting(String migrateOrComments, String path, Object value) {
-            if (migrateOrComments.contains(".") && !migrateOrComments.contains(" ")) {
-                migrate = migrateOrComments;
+        Setting(String migrate, String path, Object value) {
+            if (migrate.contains(".")) {
+                this.migrate = migrate;
             } else {
-                comments = migrateOrComments;
+                this.comments = migrate;
             }
             this.path = path;
             this.value = value;
@@ -335,8 +310,9 @@ public class Settings {
         }
 
         public int asInt() {
-            if (value instanceof String)
+            if (value instanceof String) {
                 return Integer.parseInt(value.toString());
+            }
             return ((Number) value).intValue();
         }
 
@@ -367,7 +343,14 @@ public class Settings {
         }
 
         protected void loadFromKey(DataKey root) {
-            setComments(root);
+            if (SUPPORTS_SET_COMMENTS && root.keyExists(path)) {
+                try {
+                    ((YamlKey) root).getSection("").setComments(path,
+                            comments == null ? null : Arrays.asList(comments.split("<br>")));
+                } catch (Throwable t) {
+                    SUPPORTS_SET_COMMENTS = false;
+                }
+            }
             if (migrate != null && root.keyExists(migrate) && !root.keyExists(path)) {
                 value = root.getRaw(migrate);
                 root.removeKey(migrate);
@@ -378,23 +361,8 @@ public class Settings {
 
         protected void setAtKey(DataKey root) {
             root.setRaw(path, value);
-            setComments(root);
-        }
-
-        protected void setComments(DataKey root) {
-            if (!SUPPORTS_SET_COMMENTS || !root.keyExists(path))
-                return;
-            ((MemoryDataKey) root).getSection("").setComments(path,
-                    comments == null ? null : Arrays.asList(comments.split("<br>")));
         }
     }
 
     private static boolean SUPPORTS_SET_COMMENTS = true;
-    static {
-        try {
-            ConfigurationSection.class.getMethod("getInlineComments", String.class);
-        } catch (NoSuchMethodException | SecurityException e) {
-            SUPPORTS_SET_COMMENTS = false;
-        }
-    }
 }

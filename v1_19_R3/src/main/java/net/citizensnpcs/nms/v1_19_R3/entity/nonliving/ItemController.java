@@ -16,16 +16,15 @@ import net.citizensnpcs.nms.v1_19_R3.util.NMSImpl;
 import net.citizensnpcs.npc.AbstractEntityController;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.core.PositionImpl;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.Fluid;
@@ -34,6 +33,9 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public class ItemController extends AbstractEntityController {
+    public ItemController() {
+        super(EntityItemNPC.class);
+    }
 
     @Override
     protected org.bukkit.entity.Entity createEntity(Location at, NPC npc) {
@@ -58,11 +60,6 @@ public class ItemController extends AbstractEntityController {
         public EntityItemNPC(Level world, NPC npc, double x, double y, double z, ItemStack stack) {
             super(world, x, y, z, stack);
             this.npc = (CitizensNPC) npc;
-        }
-
-        @Override
-        public boolean broadcastToPlayer(ServerPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.broadcastToPlayer(player));
         }
 
         @Override
@@ -92,6 +89,13 @@ public class ItemController extends AbstractEntityController {
         @Override
         protected AABB makeBoundingBox() {
             return NMSBoundingBox.makeBB(npc, super.makeBoundingBox());
+        }
+
+        @Override
+        public void playerTouch(Player entityhuman) {
+            if (npc == null) {
+                super.playerTouch(entityhuman);
+            }
         }
 
         @Override
@@ -135,8 +139,9 @@ public class ItemController extends AbstractEntityController {
 
         @Override
         public boolean updateFluidHeightAndDoFluidPushing(TagKey<Fluid> tagkey, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.updateFluidHeightAndDoFluidPushing(tagkey, d0);
+            }
             Vec3 old = getDeltaMovement().add(0, 0, 0);
             boolean res = super.updateFluidHeightAndDoFluidPushing(tagkey, d0);
             if (!npc.isPushableByFluids()) {

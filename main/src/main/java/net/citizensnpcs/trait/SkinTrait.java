@@ -1,11 +1,9 @@
 package net.citizensnpcs.trait;
 
-import java.util.Objects;
-
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.google.common.io.BaseEncoding;
 
 import net.citizensnpcs.Settings.Setting;
@@ -17,8 +15,6 @@ import net.citizensnpcs.api.util.Messaging;
 import net.citizensnpcs.api.util.Placeholders;
 import net.citizensnpcs.npc.skin.Skin;
 import net.citizensnpcs.npc.skin.SkinnableEntity;
-import net.citizensnpcs.util.NMS;
-import net.citizensnpcs.util.SkinProperty;
 
 @TraitName("skintrait")
 public class SkinTrait extends Trait {
@@ -39,16 +35,17 @@ public class SkinTrait extends Trait {
         super("skintrait");
     }
 
-    private boolean checkPlaceholder() {
+    private void checkPlaceholder(boolean update) {
         if (skinName == null)
-            return false;
+            return;
         String filled = ChatColor.stripColor(Placeholders.replace(skinName, null, npc).toLowerCase());
+        Messaging.debug("Filled skin placeholder", filled, "from", skinName);
         if (!filled.equalsIgnoreCase(skinName) && !filled.equalsIgnoreCase(filledPlaceholder)) {
             filledPlaceholder = filled;
-            Messaging.debug("Filled skin placeholder", filled, "from", skinName);
-            return true;
+            if (update) {
+                onSkinChange(true);
+            }
         }
-        return false;
     }
 
     /**
@@ -91,7 +88,7 @@ public class SkinTrait extends Trait {
 
     @Override
     public void load(DataKey key) {
-        checkPlaceholder();
+        checkPlaceholder(false);
     }
 
     private void onSkinChange(boolean forceUpdate) {
@@ -105,23 +102,21 @@ public class SkinTrait extends Trait {
         if (timer-- > 0)
             return;
         timer = Setting.PLACEHOLDER_SKIN_UPDATE_FREQUENCY.asTicks();
-        if (checkPlaceholder()) {
-            onSkinChange(true);
-        }
+        checkPlaceholder(true);
     }
 
     /**
      * @see #fetchDefaultSkin
      */
     public void setFetchDefaultSkin(boolean fetch) {
-        fetchDefaultSkin = fetch;
+        this.fetchDefaultSkin = fetch;
     }
 
     /**
      * @see #shouldUpdateSkins()
      */
     public void setShouldUpdateSkins(boolean update) {
-        updateSkins = update;
+        this.updateSkins = update;
     }
 
     /**
@@ -144,24 +139,14 @@ public class SkinTrait extends Trait {
      * @see net.citizensnpcs.npc.skin.Skin#get(SkinnableEntity, boolean)
      */
     public void setSkinName(String name, boolean forceUpdate) {
-        Objects.requireNonNull(name);
+        Preconditions.checkNotNull(name);
         setSkinNameInternal(name);
         onSkinChange(forceUpdate);
     }
 
     private void setSkinNameInternal(String name) {
         skinName = ChatColor.stripColor(name);
-    }
-
-    /**
-     * Set skin data copying from a {@link Player}. Not subject to rate limiting from Mojang.
-     *
-     * @param player
-     *            The player to copy
-     */
-    public void setSkinPersistent(Player player) {
-        SkinProperty sp = SkinProperty.fromMojangProfile(NMS.getProfile(player));
-        setSkinPersistent(sp.name, sp.signature, sp.value);
+        checkPlaceholder(false);
     }
 
     /**
@@ -175,9 +160,9 @@ public class SkinTrait extends Trait {
      *            {@link #getTexture()}
      */
     public void setSkinPersistent(String skinName, String signature, String data) {
-        Objects.requireNonNull(skinName);
-        Objects.requireNonNull(signature);
-        Objects.requireNonNull(data);
+        Preconditions.checkNotNull(skinName);
+        Preconditions.checkNotNull(signature);
+        Preconditions.checkNotNull(data);
 
         setSkinNameInternal(skinName);
         String json = new String(BaseEncoding.base64().decode(data), Charsets.UTF_8);
@@ -185,14 +170,14 @@ public class SkinTrait extends Trait {
             throw new IllegalArgumentException("Invalid texture data");
 
         this.signature = signature;
-        textureRaw = data;
-        updateSkins = false;
+        this.textureRaw = data;
+        this.updateSkins = false;
         npc.data().setPersistent(Skin.CACHED_SKIN_UUID_NAME_METADATA, skinName.toLowerCase());
         onSkinChange(false);
     }
 
     public void setTexture(String value, String signature) {
-        textureRaw = value;
+        this.textureRaw = value;
         this.signature = signature;
     }
 

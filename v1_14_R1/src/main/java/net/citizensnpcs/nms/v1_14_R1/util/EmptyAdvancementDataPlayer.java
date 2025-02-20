@@ -1,5 +1,6 @@
 package net.citizensnpcs.nms.v1_14_R1.util;
 
+import java.io.File;
 import java.lang.invoke.MethodHandle;
 import java.util.Set;
 
@@ -12,7 +13,7 @@ import net.minecraft.server.v1_14_R1.EntityPlayer;
 import net.minecraft.server.v1_14_R1.MinecraftServer;
 
 public class EmptyAdvancementDataPlayer extends AdvancementDataPlayer {
-    public EmptyAdvancementDataPlayer(MinecraftServer minecraftserver, EntityPlayer entityplayer) {
+    public EmptyAdvancementDataPlayer(MinecraftServer minecraftserver, File file, EntityPlayer entityplayer) {
         super(minecraftserver, CitizensAPI.getDataFolder(), entityplayer);
         this.b();
     }

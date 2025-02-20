@@ -27,13 +27,13 @@ public class StraightLineNavigationStrategy extends AbstractPathStrategy {
         this.params = params;
         this.target = target;
         this.npc = npc;
-        destination = params.entityTargetLocationMapper().apply(target);
+        this.destination = params.entityTargetLocationMapper().apply(target);
     }
 
     public StraightLineNavigationStrategy(NPC npc, Location dest, NavigatorParameters params) {
         super(TargetType.LOCATION);
         this.params = params;
-        destination = dest;
+        this.destination = dest;
         this.npc = npc;
     }
 
@@ -62,15 +62,13 @@ public class StraightLineNavigationStrategy extends AbstractPathStrategy {
             return true;
 
         Location currLoc = npc.getEntity().getLocation();
-        if (currLoc.distance(destination) <= params.distanceMargin()) {
-            if (npc.isFlyable()) {
-                npc.getEntity().setVelocity(new Vector(0, 0, 0));
-            }
+        if (currLoc.distance(destination) <= params.distanceMargin())
             return true;
-        }
+
         if (target != null) {
             destination = params.entityTargetLocationMapper().apply(target);
         }
+
         Vector destVector = currLoc.toVector().add(destination.toVector().subtract(currLoc.toVector()).normalize());
         Location destLoc = destVector.toLocation(destination.getWorld());
         if (!npc.isFlyable() && destVector.getBlockY() > currLoc.getBlockY()) {
@@ -86,6 +84,7 @@ public class StraightLineNavigationStrategy extends AbstractPathStrategy {
             destLoc = block.getLocation();
             destVector = destLoc.toVector();
         }
+
         double dX = destVector.getX() - currLoc.getX();
         double dZ = destVector.getZ() - currLoc.getZ();
         double dY = destVector.getY() - currLoc.getY();
@@ -106,21 +105,23 @@ public class StraightLineNavigationStrategy extends AbstractPathStrategy {
             while (normalisedTargetYaw >= 180.0F) {
                 normalisedTargetYaw -= 360.0F;
             }
+
             while (normalisedTargetYaw < -180.0F) {
                 normalisedTargetYaw += 360.0F;
             }
+
             if (npc.getEntity().getType() != EntityType.ENDER_DRAGON) {
                 NMS.setVerticalMovement(npc.getEntity(), 0.5);
-                NMS.setHeadAndBodyYaw(npc.getEntity(), currLoc.getYaw() + normalisedTargetYaw);
+                NMS.setHeadYaw(npc.getEntity(), currLoc.getYaw() + normalisedTargetYaw);
             }
         } else if (npc.getEntity() instanceof LivingEntity) {
             NMS.setDestination(npc.getEntity(), destVector.getX(), destVector.getY(), destVector.getZ(),
-                    params.speedModifier());
+                    params.speed());
         } else {
             Vector dir = destVector.subtract(currLoc.toVector()).normalize().multiply(0.2);
             Block in = currLoc.getBlock();
             if (distance > 0 && dY >= 1 && xzDistance <= 2.75
-                    || dY >= 0.2 && MinecraftBlockExaminer.isLiquidOrInLiquid(in)) {
+                    || (dY >= 0.2 && MinecraftBlockExaminer.isLiquidOrInLiquid(in))) {
                 dir.add(new Vector(0, 0.75, 0));
             }
             Util.faceLocation(npc.getEntity(), destLoc);

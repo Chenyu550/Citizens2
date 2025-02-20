@@ -4,6 +4,7 @@ import java.util.Random;
 
 import net.citizensnpcs.nms.v1_11_R1.entity.EntityHumanNPC;
 import net.citizensnpcs.util.NMS;
+import net.minecraft.server.v1_11_R1.AttributeInstance;
 import net.minecraft.server.v1_11_R1.ControllerMove;
 import net.minecraft.server.v1_11_R1.EntityInsentient;
 import net.minecraft.server.v1_11_R1.EntityLiving;
@@ -53,9 +54,9 @@ public class PlayerControllerMove extends ControllerMove {
             f3 = -f2;
         }
         float f4 = f + f3;
-        if (f4 < 0.0F) {
+        if (f4 < 0.0F)
             f4 += 360.0F;
-        } else if (f4 > 360.0F) {
+        else if (f4 > 360.0F) {
             f4 -= 360.0F;
         }
         return f4;
@@ -77,19 +78,22 @@ public class PlayerControllerMove extends ControllerMove {
             double d2 = this.c - i;
             double d3 = d0 * d0 + d2 * d2 + d1 * d1;
             if (d3 < 2.500000277905201E-007D) {
-                this.a.bf = 0.0F;
+                this.a.bf = (0.0F);
                 return;
             }
             float f = (float) Math.toDegrees(Math.atan2(d1, d0)) - 90.0F;
             this.a.yaw = a(this.a.yaw, f, 90.0F);
             NMS.setHeadYaw(a.getBukkitEntity(), this.a.yaw);
-            this.a.bf = (float) (this.e * this.a.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).getValue());
-            this.a.l(this.a.bf);
-            if (a instanceof EntitySlime && h-- <= 0) {
-                this.h = new Random().nextInt(20) + 10;
+            AttributeInstance speed = this.a.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED);
+            if (!(this.a instanceof EntitySlime)) {
+                speed.setValue(0.1D * this.e);
+            }
+            float movement = (float) (this.e * speed.getValue()) * 10;
+            this.a.l(movement);
+            this.a.bf = movement;
+            if (shouldSlimeJump() || ((d2 >= NMS.getStepHeight(a.getBukkitEntity())) && (d0 * d0 + d1 * d1 < 1.0D))) {
+                this.h = cg();
                 this.h /= 3;
-                ((EntityInsentient) this.a).getControllerJump().a();
-            } else if (d2 >= NMS.getStepHeight(a.getBukkitEntity()) && d0 * d0 + d1 * d1 < 1.0D) {
                 if (this.a instanceof EntityHumanNPC) {
                     ((EntityHumanNPC) this.a).getControllerJump().a();
                 } else {
@@ -116,5 +120,15 @@ public class PlayerControllerMove extends ControllerMove {
     @Override
     public double f() {
         return this.d;
+    }
+
+    private boolean shouldSlimeJump() {
+        if (!(this.a instanceof EntitySlime)) {
+            return false;
+        }
+        if (this.h-- <= 0) {
+            return true;
+        }
+        return false;
     }
 }

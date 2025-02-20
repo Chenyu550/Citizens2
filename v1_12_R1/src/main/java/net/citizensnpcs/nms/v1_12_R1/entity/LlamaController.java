@@ -22,7 +22,6 @@ import net.minecraft.server.v1_12_R1.BlockPosition;
 import net.minecraft.server.v1_12_R1.DamageSource;
 import net.minecraft.server.v1_12_R1.Entity;
 import net.minecraft.server.v1_12_R1.EntityLlama;
-import net.minecraft.server.v1_12_R1.EntityPlayer;
 import net.minecraft.server.v1_12_R1.EnumPistonReaction;
 import net.minecraft.server.v1_12_R1.GenericAttributes;
 import net.minecraft.server.v1_12_R1.IBlockData;
@@ -50,9 +49,7 @@ public class LlamaController extends MobEntityController {
         private double baseMovementSpeed;
 
         private final CitizensNPC npc;
-
         private boolean riding;
-
         public EntityLlamaNPC(World world) {
             this(world, null);
         }
@@ -89,13 +86,8 @@ public class LlamaController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
@@ -110,11 +102,6 @@ public class LlamaController extends MobEntityController {
         @Override
         public int bg() {
             return NMS.getFallDistance(npc, super.bg());
-        }
-
-        @Override
-        public boolean bo() {
-            return npc == null ? super.bo() : npc.isPushableByFluids();
         }
 
         @Override
@@ -133,14 +120,10 @@ public class LlamaController extends MobEntityController {
         }
 
         @Override
-        public float ct() {
-            return NMS.getJumpPower(npc, super.ct());
-        }
-
-        @Override
         public boolean cV() {
-            if (npc != null && riding)
+            if (npc != null && riding) {
                 return true;
+            }
             return super.cV();
         }
 
@@ -225,10 +208,11 @@ public class LlamaController extends MobEntityController {
 
         @Override
         public boolean m_() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.m_();
-            else
+            } else {
                 return false;
+            }
         }
     }
 

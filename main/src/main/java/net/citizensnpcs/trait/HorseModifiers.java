@@ -1,5 +1,7 @@
 package net.citizensnpcs.trait;
 
+import java.lang.invoke.MethodHandle;
+
 import org.bukkit.entity.ChestedHorse;
 import org.bukkit.entity.Horse;
 import org.bukkit.entity.Horse.Color;
@@ -28,8 +30,6 @@ public class HorseModifiers extends Trait {
     private ItemStack saddle = null;
     @Persist("style")
     private Style style = Style.NONE;
-    @Persist("tamed")
-    private boolean tamed;
 
     public HorseModifiers() {
         super("horsemodifiers");
@@ -55,10 +55,6 @@ public class HorseModifiers extends Trait {
      */
     public Style getStyle() {
         return style;
-    }
-
-    public boolean isTamed() {
-        return tamed;
     }
 
     @Override
@@ -107,11 +103,6 @@ public class HorseModifiers extends Trait {
         updateModifiers();
     }
 
-    public void setTamed(boolean tamed) {
-        this.tamed = tamed;
-        updateModifiers();
-    }
-
     private void updateModifiers() {
         if (npc.getEntity() instanceof Horse) {
             Horse horse = (Horse) npc.getEntity();
@@ -120,18 +111,22 @@ public class HorseModifiers extends Trait {
             horse.getInventory().setArmor(armor);
             horse.getInventory().setSaddle(saddle);
         }
-        if (SUPPORTS_CARRYING_CHEST && npc.getEntity() instanceof ChestedHorse) {
-            ((ChestedHorse) npc.getEntity()).setCarryingChest(carryingChest);
+        if (CARRYING_CHEST_METHOD == null)
+            return;
+        if (npc.getEntity() instanceof ChestedHorse) {
+            try {
+                CARRYING_CHEST_METHOD.invoke(npc.getEntity(), carryingChest);
+            } catch (Throwable e) {
+            }
         }
     }
 
-    private static boolean SUPPORTS_CARRYING_CHEST;
+    private static MethodHandle CARRYING_CHEST_METHOD;
+
     static {
         try {
-            if (NMS.getMethodHandle(Class.forName("org.bukkit.entity.ChestedHorse"), "setCarryingChest", false,
-                    boolean.class) != null) {
-                SUPPORTS_CARRYING_CHEST = true;
-            }
+            CARRYING_CHEST_METHOD = NMS.getMethodHandle(Class.forName("org.bukkit.entity.ChestedHorse"),
+                    "setCarryingChest", false, boolean.class);
         } catch (Throwable e) {
         }
     }

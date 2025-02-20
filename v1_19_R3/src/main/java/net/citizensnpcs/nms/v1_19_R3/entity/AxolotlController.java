@@ -6,6 +6,8 @@ import org.bukkit.craftbukkit.v1_19_R3.entity.CraftAxolotl;
 import org.bukkit.craftbukkit.v1_19_R3.entity.CraftEntity;
 import org.bukkit.util.Vector;
 
+import com.mojang.serialization.Dynamic;
+
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.nms.v1_19_R3.util.ForwardingNPCHolder;
 import net.citizensnpcs.nms.v1_19_R3.util.NMSBoundingBox;
@@ -18,7 +20,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.PositionImpl;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionHand;
@@ -26,6 +27,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
@@ -78,21 +80,18 @@ public class AxolotlController extends MobEntityController {
         }
 
         @Override
-        public boolean broadcastToPlayer(ServerPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.broadcastToPlayer(player));
-        }
-
-        @Override
         protected boolean canRide(Entity entity) {
-            if (npc != null && (entity instanceof Boat || entity instanceof AbstractMinecart))
+            if (npc != null && (entity instanceof Boat || entity instanceof AbstractMinecart)) {
                 return !npc.isProtected();
+            }
             return super.canRide(entity);
         }
 
         @Override
         public boolean causeFallDamage(float f, float f1, DamageSource damagesource) {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.causeFallDamage(f, f1, damagesource);
+            }
             return false;
         }
 
@@ -134,11 +133,6 @@ public class AxolotlController extends MobEntityController {
         }
 
         @Override
-        public float getJumpPower() {
-            return NMS.getJumpPower(npc, super.getJumpPower());
-        }
-
-        @Override
         public int getMaxFallDistance() {
             return NMS.getFallDistance(npc, super.getMaxFallDistance());
         }
@@ -166,7 +160,7 @@ public class AxolotlController extends MobEntityController {
 
         @Override
         public void knockback(double strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, (float) strength, dx, dz, evt -> super.knockback((float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, (float) strength, dx, dz, (evt) -> super.knockback((float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
@@ -176,21 +170,31 @@ public class AxolotlController extends MobEntityController {
         }
 
         @Override
+        protected Brain<?> makeBrain(Dynamic<?> dynamic) {
+            if (npc == null || npc.useMinecraftAI()) {
+                return super.makeBrain(dynamic);
+            }
+            return brainProvider().makeBrain(dynamic);
+        }
+
+        @Override
         public InteractionResult mobInteract(Player entityhuman, InteractionHand enumhand) {
             if (npc == null || !npc.isProtected())
                 return super.mobInteract(entityhuman, enumhand);
             ItemStack itemstack = entityhuman.getItemInHand(enumhand);
-            if (itemstack.getItem() == Items.BUCKET || itemstack.getItem() == Items.WATER_BUCKET)
+            if (itemstack.getItem() == Items.BUCKET || itemstack.getItem() == Items.WATER_BUCKET) {
                 return InteractionResult.FAIL;
+            }
             return super.mobInteract(entityhuman, enumhand);
         }
 
         @Override
         public boolean onClimbable() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.onClimbable();
-            else
+            } else {
                 return false;
+            }
         }
 
         @Override
@@ -206,9 +210,8 @@ public class AxolotlController extends MobEntityController {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.push(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
         }
 
         @Override
@@ -230,13 +233,9 @@ public class AxolotlController extends MobEntityController {
                 NMSImpl.updateMinecraftAIState(npc, this);
                 if (npc.useMinecraftAI() && this.moveControl != this.oldMoveController) {
                     this.moveControl = this.oldMoveController;
-                    this.getAttribute(Attributes.MOVEMENT_SPEED)
-                            .setBaseValue(this.getAttribute(Attributes.MOVEMENT_SPEED).getBaseValue() * 10);
                 }
                 if (!npc.useMinecraftAI() && this.moveControl == this.oldMoveController) {
                     this.moveControl = new MoveControl(this);
-                    this.getAttribute(Attributes.MOVEMENT_SPEED)
-                            .setBaseValue(this.getAttribute(Attributes.MOVEMENT_SPEED).getBaseValue() / 10);
                 }
                 npc.update();
             }
@@ -255,8 +254,9 @@ public class AxolotlController extends MobEntityController {
 
         @Override
         public boolean updateFluidHeightAndDoFluidPushing(TagKey<Fluid> tagkey, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.updateFluidHeightAndDoFluidPushing(tagkey, d0);
+            }
             Vec3 old = getDeltaMovement().add(0, 0, 0);
             boolean res = super.updateFluidHeightAndDoFluidPushing(tagkey, d0);
             if (!npc.isPushableByFluids()) {

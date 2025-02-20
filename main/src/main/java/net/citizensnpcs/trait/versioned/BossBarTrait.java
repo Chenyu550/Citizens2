@@ -2,10 +2,9 @@ package net.citizensnpcs.trait.versioned;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.function.Supplier;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Registry;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarFlag;
 import org.bukkit.boss.BarStyle;
@@ -38,12 +37,11 @@ import net.citizensnpcs.util.Util;
 
 @TraitName("bossbar")
 public class BossBarTrait extends Trait {
-    private BossBar activeBar;
+    private BossBar barCache;
     @Persist
     private BarColor color = BarColor.PURPLE;
     @Persist
     private List<BarFlag> flags = Lists.newArrayList();
-    private Supplier<Double> progressProvider;
     @Persist
     private int range = -1;
     @Persist
@@ -64,12 +62,11 @@ public class BossBarTrait extends Trait {
     private BossBar getBar() {
         if (npc.isSpawned() && isBoss(npc.getEntity()) && NMS.getBossBar(npc.getEntity()) != null)
             return (BossBar) NMS.getBossBar(npc.getEntity());
-
-        if (activeBar == null) {
-            activeBar = Bukkit.getServer().createBossBar(npc.getFullName(), color, style,
+        if (barCache == null) {
+            barCache = Bukkit.getServer().createBossBar(npc.getFullName(), color, style,
                     flags.toArray(new BarFlag[flags.size()]));
         }
-        return activeBar;
+        return barCache;
     }
 
     public BarColor getColor() {
@@ -114,12 +111,11 @@ public class BossBarTrait extends Trait {
 
     @Override
     public void onDespawn() {
-        if (activeBar == null)
+        if (barCache == null)
             return;
-
-        activeBar.removeAll();
-        activeBar.hide();
-        activeBar = null;
+        barCache.removeAll();
+        barCache.hide();
+        barCache = null;
     }
 
     @Override
@@ -131,7 +127,6 @@ public class BossBarTrait extends Trait {
     public void run() {
         if (!npc.isSpawned())
             return;
-
         BossBar bar = getBar();
         if (bar == null)
             return;
@@ -142,8 +137,11 @@ public class BossBarTrait extends Trait {
                     LivingEntity entity = (LivingEntity) npc.getEntity();
                     double maxHealth = entity.getMaxHealth();
                     if (SUPPORT_ATTRIBUTES) {
-                        maxHealth = entity.getAttribute(Util.getRegistryValue(Registry.ATTRIBUTE, "generic.max_health", "max_health"))
-                                .getValue();
+                        try {
+                            maxHealth = entity.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+                        } catch (Throwable t) {
+                            SUPPORT_ATTRIBUTES = false;
+                        }
                     }
                     bar.setProgress(entity.getHealth() / maxHealth);
                 }
@@ -161,9 +159,6 @@ public class BossBarTrait extends Trait {
         }
         bar.setTitle(title);
         bar.setVisible(visible);
-        if (progressProvider != null) {
-            bar.setProgress(progressProvider.get());
-        }
         if (style != null) {
             bar.setStyle(style);
         }
@@ -177,12 +172,10 @@ public class BossBarTrait extends Trait {
             bar.addFlag(flag);
         }
         bar.removeAll();
-
         for (Player player : CitizensAPI.getLocationLookup().getNearbyPlayers(npc.getEntity().getLocation(),
                 range > 0 ? range : Setting.BOSSBAR_RANGE.asInt())) {
             if (viewPermission != null && !player.hasPermission(viewPermission))
                 continue;
-
             bar.addPlayer(player);
         }
     }
@@ -199,10 +192,6 @@ public class BossBarTrait extends Trait {
         this.flags = flags;
     }
 
-    public void setProgressProvider(Supplier<Double> provider) {
-        progressProvider = provider;
-    }
-
     public void setRange(int range) {
         this.range = range;
     }
@@ -216,11 +205,11 @@ public class BossBarTrait extends Trait {
     }
 
     public void setTrackVariable(String variable) {
-        track = variable;
+        this.track = variable;
     }
 
     public void setViewPermission(String viewpermission) {
-        viewPermission = viewpermission;
+        this.viewPermission = viewpermission;
     }
 
     public void setVisible(boolean visible) {
@@ -230,7 +219,7 @@ public class BossBarTrait extends Trait {
     @Command(
             aliases = { "npc" },
             usage = "bossbar --style [style] --color [color] --title [title] --visible [visible] --viewpermission [permission] --flags [flags] --track [health | placeholder] --range [range]",
-            desc = "",
+            desc = "Edit bossbar properties",
             modifiers = { "bossbar" },
             min = 1,
             max = 1)
@@ -274,11 +263,4 @@ public class BossBarTrait extends Trait {
     }
 
     private static boolean SUPPORT_ATTRIBUTES = true;
-    static {
-        try {
-            Class.forName("org.bukkit.attribute.Attribute");
-        } catch (ClassNotFoundException e) {
-            SUPPORT_ATTRIBUTES = false;
-        }
-    }
 }

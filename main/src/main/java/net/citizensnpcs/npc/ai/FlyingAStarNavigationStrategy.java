@@ -43,16 +43,16 @@ public class FlyingAStarNavigationStrategy extends AbstractPathStrategy {
     public FlyingAStarNavigationStrategy(NPC npc, Iterable<Vector> path, NavigatorParameters params) {
         super(TargetType.LOCATION);
         List<Vector> list = Lists.newArrayList(path);
-        target = list.get(list.size() - 1).toLocation(npc.getStoredLocation().getWorld());
-        parameters = params;
+        this.target = list.get(list.size() - 1).toLocation(npc.getStoredLocation().getWorld());
+        this.parameters = params;
         this.npc = npc;
         setPlan(new Path(list));
     }
 
-    public FlyingAStarNavigationStrategy(NPC npc, Location dest, NavigatorParameters params) {
+    public FlyingAStarNavigationStrategy(final NPC npc, Location dest, NavigatorParameters params) {
         super(TargetType.LOCATION);
-        target = dest;
-        parameters = params;
+        this.target = dest;
+        this.parameters = params;
         this.npc = npc;
     }
 
@@ -89,7 +89,7 @@ public class FlyingAStarNavigationStrategy extends AbstractPathStrategy {
     }
 
     public void setPlan(Path path) {
-        plan = path;
+        this.plan = path;
         if (plan == null || plan.isComplete()) {
             setCancelReason(CancelReason.STUCK);
         } else {
@@ -133,13 +133,15 @@ public class FlyingAStarNavigationStrategy extends AbstractPathStrategy {
                 setPlan(plan);
             }
         }
-        if (getCancelReason() != null || plan == null || plan.isComplete())
+        if (getCancelReason() != null || plan == null || plan.isComplete()) {
             return true;
+        }
         Location current = npc.getEntity().getLocation();
         if (current.toVector().distance(vector) <= parameters.distanceMargin()) {
             plan.update(npc);
-            if (plan.isComplete())
+            if (plan.isComplete()) {
                 return true;
+            }
             vector = plan.getCurrentVector();
         }
         if (parameters.debug()) {
@@ -157,6 +159,7 @@ public class FlyingAStarNavigationStrategy extends AbstractPathStrategy {
                 // 1.8 compatibility
             }
         }
+
         Vector centeredDest = new Vector(vector.getX() + 0.5D, vector.getY() + 0.1D, vector.getZ() + 0.5D);
         double d0 = centeredDest.getX() - current.getX();
         double d1 = centeredDest.getY() - current.getY();
@@ -175,9 +178,10 @@ public class FlyingAStarNavigationStrategy extends AbstractPathStrategy {
             NMS.setVerticalMovement(npc.getEntity(), 0.5);
             Util.faceLocation(npc.getEntity(), centeredDest.toLocation(npc.getEntity().getWorld()));
         }
+
         plan.run(npc);
         return false;
     }
 
-    private static AStarMachine<VectorNode, Path> ASTAR = AStarMachine.createWithDefaultStorage();
+    private static final AStarMachine<VectorNode, Path> ASTAR = AStarMachine.createWithDefaultStorage();
 }

@@ -1,6 +1,5 @@
 package net.citizensnpcs.util;
 
-import java.util.Objects;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -29,16 +28,20 @@ public class ChunkCoord {
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj)
+        if (this == obj) {
             return true;
-
-        if (obj == null || getClass() != obj.getClass())
+        }
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
-
+        }
         ChunkCoord other = (ChunkCoord) obj;
-        if (!Objects.equals(worldUUID, other.worldUUID))
+        if (worldUUID == null) {
+            if (other.worldUUID != null) {
+                return false;
+            }
+        } else if (!worldUUID.equals(other.worldUUID)) {
             return false;
-
+        }
         return x == other.x && z == other.z;
     }
 
@@ -49,15 +52,18 @@ public class ChunkCoord {
 
     @Override
     public int hashCode() {
-        return 31 * (31 * (31 + (worldUUID == null ? 0 : worldUUID.hashCode())) + x) + z;
+        final int prime = 31;
+        return prime * (prime * (prime + ((worldUUID == null) ? 0 : worldUUID.hashCode())) + x) + z;
     }
 
     public void setForceLoaded(boolean b) {
-        if (!SUPPORTS_FORCE_LOADED)
-            return;
         Chunk chunk = getChunk();
-        if (chunk != null) {
-            chunk.setForceLoaded(b);
+        if (chunk != null && SUPPORTS_FORCE_LOADED) {
+            try {
+                chunk.setForceLoaded(b);
+            } catch (NoSuchMethodError e) {
+                SUPPORTS_FORCE_LOADED = false;
+            }
         }
     }
 
@@ -67,11 +73,4 @@ public class ChunkCoord {
     }
 
     private static boolean SUPPORTS_FORCE_LOADED = true;
-    static {
-        try {
-            Chunk.class.getMethod("setForceLoaded", boolean.class);
-        } catch (NoSuchMethodException | SecurityException e) {
-            SUPPORTS_FORCE_LOADED = false;
-        }
-    }
 }

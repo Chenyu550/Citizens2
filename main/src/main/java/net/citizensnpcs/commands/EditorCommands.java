@@ -18,7 +18,7 @@ public class EditorCommands {
     @Command(
             aliases = { "npc" },
             usage = "copier",
-            desc = "",
+            desc = "Toggle the NPC copier",
             modifiers = { "copier" },
             min = 1,
             max = 1,
@@ -30,7 +30,7 @@ public class EditorCommands {
     @Command(
             aliases = { "npc" },
             usage = "equip",
-            desc = "",
+            desc = "Toggle the equipment editor",
             modifiers = { "equip" },
             min = 1,
             max = 1,
@@ -38,14 +38,13 @@ public class EditorCommands {
     public void equip(CommandContext args, Player player, NPC npc) throws CommandException {
         if (!npc.isSpawned())
             throw new CommandException("NPC must be spawned");
-
         Editor.enterOrLeave(player, new EquipmentEditor(player, npc));
     }
 
     @Command(
             aliases = { "npc" },
             usage = "path",
-            desc = "",
+            desc = "Toggle the waypoint editor",
             modifiers = { "path" },
             min = 1,
             flags = "*",
@@ -55,7 +54,6 @@ public class EditorCommands {
         Editor editor = npc.getOrAddTrait(Waypoints.class).getEditor(player, args);
         if (editor == null)
             return;
-
         if (player.isConversing() && args.argsLength() > 1) {
             player.acceptConversationInput(args.getJoinedStrings(1));
             return;
@@ -66,7 +64,7 @@ public class EditorCommands {
     @Command(
             aliases = { "npc" },
             usage = "text",
-            desc = "",
+            desc = "Toggle the text editor",
             modifiers = { "text" },
             min = 1,
             permission = "citizens.npc.edit.text")

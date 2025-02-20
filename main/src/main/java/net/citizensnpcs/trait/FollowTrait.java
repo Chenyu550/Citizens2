@@ -17,7 +17,6 @@ import net.citizensnpcs.api.ai.flocking.SeparationBehavior;
 import net.citizensnpcs.api.persistence.Persist;
 import net.citizensnpcs.api.trait.Trait;
 import net.citizensnpcs.api.trait.TraitName;
-import net.citizensnpcs.util.Util;
 
 /**
  * Persists a {@link Player} to follow while spawned. Optionally allows protecting of the player as well.
@@ -29,36 +28,26 @@ public class FollowTrait extends Trait {
     @Persist
     private UUID followingUUID;
     @Persist
-    private double margin = -1;
-    @Persist
     private boolean protect;
 
     public FollowTrait() {
         super("followtrait");
     }
 
-    private void cancelNavigationIfActive() {
-        if (npc.getNavigator().isNavigating() && entity != null && npc.getNavigator().getEntityTarget() != null
-                && entity == npc.getNavigator().getEntityTarget().getTarget()) {
-            npc.getNavigator().cancelNavigation();
-        }
-    }
-
     /**
      * Sets the {@link Entity} to follow
      */
-    public void follow(Entity follow) {
-        cancelNavigationIfActive();
-        followingUUID = follow == null ? null : follow.getUniqueId();
-        entity = null;
+    public void follow(Entity entity) {
+        this.followingUUID = entity == null ? null : entity.getUniqueId();
+        if (npc.getNavigator().isNavigating() && this.entity != null && npc.getNavigator().getEntityTarget() != null
+                && this.entity == npc.getNavigator().getEntityTarget().getTarget()) {
+            npc.getNavigator().cancelNavigation();
+        }
+        this.entity = null;
     }
 
     public Entity getFollowing() {
         return entity;
-    }
-
-    public double getFollowingMargin() {
-        return margin;
     }
 
     /**
@@ -93,7 +82,7 @@ public class FollowTrait extends Trait {
 
     @Override
     public void onSpawn() {
-        flock = new Flocker(npc, new RadiusNPCFlock(4, 4), new SeparationBehavior(1));
+        flock = new Flocker(npc, new RadiusNPCFlock(4, 0), new SeparationBehavior(1));
     }
 
     @Override
@@ -103,7 +92,7 @@ public class FollowTrait extends Trait {
                 return;
             entity = Bukkit.getPlayer(followingUUID);
             if (entity == null) {
-                entity = Util.getEntity(followingUUID);
+                entity = Bukkit.getEntity(followingUUID);
             }
             if (entity == null)
                 return;
@@ -117,19 +106,12 @@ public class FollowTrait extends Trait {
             }
             return;
         }
+
         if (!npc.getNavigator().isNavigating()) {
             npc.getNavigator().setTarget(entity, false);
-            if (margin > 0) {
-                npc.getNavigator().getLocalParameters().distanceMargin(margin);
-            }
         } else {
             flock.run();
         }
-    }
-
-    public void setFollowingMargin(double margin) {
-        this.margin = margin;
-        cancelNavigationIfActive();
     }
 
     /**
@@ -137,6 +119,5 @@ public class FollowTrait extends Trait {
      */
     public void setProtect(boolean protect) {
         this.protect = protect;
-        cancelNavigationIfActive();
     }
 }

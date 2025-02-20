@@ -33,8 +33,9 @@ public class CustomEntityRegistry extends RegistryMaterials
 
     @Override
     public int a(Object key) {
-        if (entityIds.containsKey(key))
+        if (entityIds.containsKey(key)) {
             return entityIds.get(key);
+        }
         return wrapped.a((Class<? extends Entity>) key);
     }
 
@@ -45,8 +46,9 @@ public class CustomEntityRegistry extends RegistryMaterials
 
     @Override
     public MinecraftKey b(Object value) {
-        if (entityClasses.containsKey(value))
+        if (entityClasses.containsKey(value)) {
             return entityClasses.get(value);
+        }
         return wrapped.b((Class<? extends Entity>) value);
     }
 
@@ -62,8 +64,9 @@ public class CustomEntityRegistry extends RegistryMaterials
 
     @Override
     public Class<? extends Entity> get(Object key) {
-        if (entities.containsKey(key))
+        if (entities.containsKey(key)) {
             return entities.get(key);
+        }
         return wrapped.get((MinecraftKey) key);
     }
 

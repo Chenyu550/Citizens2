@@ -26,7 +26,6 @@ import net.minecraft.server.v1_16_R3.Entity;
 import net.minecraft.server.v1_16_R3.EntityBoat;
 import net.minecraft.server.v1_16_R3.EntityEnderDragon;
 import net.minecraft.server.v1_16_R3.EntityMinecartAbstract;
-import net.minecraft.server.v1_16_R3.EntityPlayer;
 import net.minecraft.server.v1_16_R3.EntityTypes;
 import net.minecraft.server.v1_16_R3.EnumPistonReaction;
 import net.minecraft.server.v1_16_R3.FluidType;
@@ -71,20 +70,16 @@ public class EnderDragonController extends MobEntityController {
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public void a(float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a((float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a((float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
         @Override
         public boolean a(Tag<FluidType> tag, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.a(tag, d0);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.a(tag, d0);
             if (!npc.isPushableByFluids()) {
@@ -110,9 +105,8 @@ public class EnderDragonController extends MobEntityController {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.collide(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
         }
 
         @Override
@@ -131,11 +125,6 @@ public class EnderDragonController extends MobEntityController {
                 setMot(old);
             }
             return res;
-        }
-
-        @Override
-        public float dJ() {
-            return NMS.getJumpPower(npc, super.dJ());
         }
 
         @Override
@@ -201,9 +190,11 @@ public class EnderDragonController extends MobEntityController {
                         this.c[i][1] = this.locY();
                     }
                 }
+
                 if (++this.d == this.c.length) {
                     this.d = 0;
                 }
+
                 this.c[this.d][0] = this.yaw;
                 this.c[this.d][1] = this.locY();
 
@@ -216,6 +207,7 @@ public class EnderDragonController extends MobEntityController {
                     children[j].lastY = children[j].E = vec3.y;
                     children[j].lastZ = children[j].F = vec3.z;
                 }
+
                 if (getRidingPassenger() != null) {
                     yaw = getRidingPassenger().getBukkitYaw() - 180;
                 }
@@ -223,11 +215,12 @@ public class EnderDragonController extends MobEntityController {
                 if (mot.getX() != 0 || mot.getY() != 0 || mot.getZ() != 0) {
                     mot = mot.d(0.98, 0.98, 0.98);
                     if (getRidingPassenger() == null) {
-                        yaw = Util.getYawFromVelocity(getBukkitEntity(), mot.x, mot.z);
+                        yaw = Util.getDragonYaw(getBukkitEntity(), mot.x, mot.z);
                     }
                     setPosition(locX() + mot.getX(), locY() + mot.getY(), locZ() + mot.getZ());
                     setMot(mot);
                 }
+
                 if (npc.hasTrait(EnderDragonTrait.class) && npc.getOrAddTrait(EnderDragonTrait.class).isDestroyWalls()
                         && NMSImpl.ENDERDRAGON_CHECK_WALLS != null) {
                     for (int i = 0; i < 3; i++) {
@@ -260,8 +253,9 @@ public class EnderDragonController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
 

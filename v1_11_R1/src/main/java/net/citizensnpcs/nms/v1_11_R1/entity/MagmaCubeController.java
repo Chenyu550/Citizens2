@@ -20,7 +20,6 @@ import net.minecraft.server.v1_11_R1.BlockPosition;
 import net.minecraft.server.v1_11_R1.Entity;
 import net.minecraft.server.v1_11_R1.EntityHuman;
 import net.minecraft.server.v1_11_R1.EntityMagmaCube;
-import net.minecraft.server.v1_11_R1.EntityPlayer;
 import net.minecraft.server.v1_11_R1.IBlockData;
 import net.minecraft.server.v1_11_R1.NBTTagCompound;
 import net.minecraft.server.v1_11_R1.SoundEffect;
@@ -66,13 +65,8 @@ public class MagmaCubeController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
@@ -89,11 +83,6 @@ public class MagmaCubeController extends MobEntityController {
         }
 
         @Override
-        public boolean bg() {
-            return npc == null ? super.bg() : npc.isPushableByFluids();
-        }
-
-        @Override
         protected SoundEffect bW() {
             return NMSImpl.getSoundEffect(npc, super.bW(), NPC.Metadata.DEATH_SOUND);
         }
@@ -104,18 +93,12 @@ public class MagmaCubeController extends MobEntityController {
         }
 
         @Override
-        public float cl() {
-            return NMS.getJumpPower(npc, super.cl());
-        }
-
-        @Override
         public void collide(net.minecraft.server.v1_11_R1.Entity entity) {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.collide(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
         }
 
         @Override
@@ -186,10 +169,11 @@ public class MagmaCubeController extends MobEntityController {
 
         @Override
         public boolean m_() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.m_();
-            else
+            } else {
                 return false;
+            }
         }
 
         @Override

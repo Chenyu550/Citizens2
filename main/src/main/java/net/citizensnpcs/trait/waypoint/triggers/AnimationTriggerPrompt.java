@@ -25,8 +25,9 @@ public class AnimationTriggerPrompt extends StringPrompt implements WaypointTrig
 
     @Override
     public Prompt acceptInput(ConversationContext context, String input) {
-        if (input.equalsIgnoreCase("back"))
+        if (input.equalsIgnoreCase("back")) {
             return (Prompt) context.getSessionData("previous");
+        }
         if (input.startsWith("at ")) {
             try {
                 at = CommandContext.parseLocation(
@@ -47,7 +48,6 @@ public class AnimationTriggerPrompt extends StringPrompt implements WaypointTrig
         if (animation == null) {
             Messaging.sendErrorTr((CommandSender) context.getForWhom(), Messages.INVALID_ANIMATION, input,
                     getValidAnimations());
-            return this;
         }
         animations.add(animation);
         Messaging.sendTr((CommandSender) context.getForWhom(), Messages.ANIMATION_ADDED, input);
@@ -65,14 +65,7 @@ public class AnimationTriggerPrompt extends StringPrompt implements WaypointTrig
 
     @Override
     public String getPromptText(ConversationContext context) {
-        if (context.getSessionData("said") == Boolean.TRUE) {
-            Messaging.send((CommandSender) context.getForWhom(),
-                    "Current animations:<br>-   " + Joiner.on("<br>-   ").join(animations));
-        } else {
-            Messaging.sendTr((CommandSender) context.getForWhom(), Messages.ANIMATION_TRIGGER_PROMPT,
-                    getValidAnimations());
-            context.setSessionData("said", true);
-        }
+        Messaging.sendTr((CommandSender) context.getForWhom(), Messages.ANIMATION_TRIGGER_PROMPT, getValidAnimations());
         return "";
     }
 

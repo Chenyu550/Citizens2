@@ -13,10 +13,8 @@ import net.citizensnpcs.nms.v1_14_R1.util.NMSBoundingBox;
 import net.citizensnpcs.nms.v1_14_R1.util.NMSImpl;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_14_R1.AxisAlignedBB;
-import net.minecraft.server.v1_14_R1.EntityPlayer;
 import net.minecraft.server.v1_14_R1.EntityTNTPrimed;
 import net.minecraft.server.v1_14_R1.EntityTypes;
 import net.minecraft.server.v1_14_R1.EnumPistonReaction;
@@ -54,14 +52,10 @@ public class TNTPrimedController extends MobEntityController {
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public boolean b(Tag<FluidType> tag) {
-            if (npc == null)
+            if (npc == null) {
                 return super.b(tag);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.b(tag);
             if (!npc.isPushableByFluids()) {
@@ -111,15 +105,9 @@ public class TNTPrimedController extends MobEntityController {
             return Util.callPistonPushEvent(npc) ? EnumPistonReaction.IGNORE : super.getPushReaction();
         }
 
-        private int fuseRenewalDelay = 9;
         @Override
         public void tick() {
             if (npc != null) {
-                if (fuseRenewalDelay-- <= 0) {
-                    setFuseTicks(Integer.MAX_VALUE - 1);
-                    setFuseTicks(Integer.MAX_VALUE);
-                    fuseRenewalDelay = 9;
-                }
                 npc.update();
             } else {
                 super.tick();

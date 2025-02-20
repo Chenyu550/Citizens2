@@ -19,7 +19,6 @@ import net.minecraft.server.v1_10_R1.BlockPosition;
 import net.minecraft.server.v1_10_R1.Entity;
 import net.minecraft.server.v1_10_R1.EntityHuman;
 import net.minecraft.server.v1_10_R1.EntityLightning;
-import net.minecraft.server.v1_10_R1.EntityPlayer;
 import net.minecraft.server.v1_10_R1.EntityVillager;
 import net.minecraft.server.v1_10_R1.EnumHand;
 import net.minecraft.server.v1_10_R1.IBlockData;
@@ -75,7 +74,7 @@ public class VillagerController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
@@ -88,18 +87,8 @@ public class VillagerController extends MobEntityController {
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public int aY() {
             return NMS.getFallDistance(npc, super.aY());
-        }
-
-        @Override
-        public boolean bg() {
-            return npc == null ? super.bg() : npc.isPushableByFluids();
         }
 
         @Override
@@ -110,11 +99,6 @@ public class VillagerController extends MobEntityController {
         @Override
         protected SoundEffect bW() {
             return NMSImpl.getSoundEffect(npc, super.bW(), NPC.Metadata.HURT_SOUND);
-        }
-
-        @Override
-        public float ck() {
-            return NMS.getJumpPower(npc, super.ck());
         }
 
         @Override
@@ -172,9 +156,8 @@ public class VillagerController extends MobEntityController {
 
         @Override
         public CraftEntity getBukkitEntity() {
-            if (npc != null && !(bukkitEntity instanceof NPCHolder)) {
+            if (npc != null && !(bukkitEntity instanceof NPCHolder))
                 bukkitEntity = new VillagerNPC(this);
-            }
             return super.getBukkitEntity();
         }
 
@@ -205,10 +188,11 @@ public class VillagerController extends MobEntityController {
 
         @Override
         public boolean m_() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.m_();
-            else
+            } else {
                 return false;
+            }
         }
 
         @Override

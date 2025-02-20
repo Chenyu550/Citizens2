@@ -93,8 +93,10 @@ public class Poses extends Trait {
             paginator.addLine(line);
             i++;
         }
-        if (!paginator.sendPage(sender, page))
+
+        if (!paginator.sendPage(sender, page)) {
             throw new CommandException(Messages.COMMAND_PAGE_MISSING, page);
+        }
     }
 
     public Pose getPose(String name) {
@@ -113,8 +115,7 @@ public class Poses extends Trait {
         for (DataKey sub : key.getRelative("list").getIntegerSubKeys()) {
             try {
                 String[] parts = sub.getString("").split(";");
-                poses.put(parts[0].toLowerCase(),
-                        new Pose(parts[0], Float.parseFloat(parts[1]), Float.parseFloat(parts[2])));
+                poses.put(parts[0].toLowerCase(), new Pose(parts[0], Float.valueOf(parts[1]), Float.valueOf(parts[2])));
             } catch (NumberFormatException e) {
                 Messaging.logTr(Messages.SKIPPING_INVALID_POSE, sub.name(), e.getMessage());
             }
@@ -148,6 +149,6 @@ public class Poses extends Trait {
     }
 
     public void setDefaultPose(String pose) {
-        defaultPose = pose;
+        this.defaultPose = pose;
     }
 }

@@ -26,7 +26,6 @@ import net.minecraft.server.v1_16_R3.Entity;
 import net.minecraft.server.v1_16_R3.EntityBoat;
 import net.minecraft.server.v1_16_R3.EntityHorse;
 import net.minecraft.server.v1_16_R3.EntityMinecartAbstract;
-import net.minecraft.server.v1_16_R3.EntityPlayer;
 import net.minecraft.server.v1_16_R3.EntityTypes;
 import net.minecraft.server.v1_16_R3.EnumPistonReaction;
 import net.minecraft.server.v1_16_R3.FluidType;
@@ -60,7 +59,6 @@ public class HorseController extends MobEntityController {
         private final CitizensNPC npc;
 
         private boolean riding;
-
         public EntityHorseNPC(EntityTypes<? extends EntityHorse> types, World world) {
             this(types, world, null);
         }
@@ -97,20 +95,16 @@ public class HorseController extends MobEntityController {
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public void a(float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a((float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a((float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
         @Override
         public boolean a(Tag<FluidType> tag, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.a(tag, d0);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.a(tag, d0);
             if (!npc.isPushableByFluids()) {
@@ -121,8 +115,9 @@ public class HorseController extends MobEntityController {
 
         @Override
         public boolean b(float f, float f1) {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.b(f, f1);
+            }
             return false;
         }
 
@@ -150,19 +145,15 @@ public class HorseController extends MobEntityController {
 
         @Override
         public boolean cs() { // horse boolean
-            if (npc != null && riding)
+            if (npc != null && riding) {
                 return true;
+            }
             return super.cs();
         }
 
         @Override
         public boolean d(NBTTagCompound save) {
             return npc == null ? super.d(save) : false;
-        }
-
-        @Override
-        public float dJ() {
-            return NMS.getJumpPower(npc, super.dJ());
         }
 
         @Override
@@ -222,10 +213,11 @@ public class HorseController extends MobEntityController {
 
         @Override
         public boolean isClimbing() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.isClimbing();
-            else
+            } else {
                 return false;
+            }
         }
 
         @Override
@@ -259,8 +251,9 @@ public class HorseController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
     }

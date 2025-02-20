@@ -18,7 +18,6 @@ import net.citizensnpcs.api.gui.Menu;
 import net.citizensnpcs.api.gui.MenuContext;
 import net.citizensnpcs.api.persistence.Persist;
 import net.citizensnpcs.api.util.Placeholders;
-import net.citizensnpcs.util.InventoryMultiplexer;
 import net.citizensnpcs.util.Util;
 import net.milkbowl.vault.permission.Permission;
 
@@ -47,17 +46,19 @@ public class PermissionAction extends NPCShopAction {
     }
 
     @Override
-    public int getMaxRepeats(Entity entity, InventoryMultiplexer inventory) {
+    public int getMaxRepeats(Entity entity) {
         return -1;
     }
 
     @Override
-    public Transaction grant(Entity entity, InventoryMultiplexer inventory, int repeats) {
+    public Transaction grant(Entity entity, int repeats) {
         if (!(entity instanceof Player))
             return Transaction.fail();
         Player player = (Player) entity;
         Permission perm = Bukkit.getServicesManager().getRegistration(Permission.class).getProvider();
-        return Transaction.create(() -> true, () -> {
+        return Transaction.create(() -> {
+            return true;
+        }, () -> {
             for (String permission : permissions) {
                 perm.playerAdd(null, player, Placeholders.replace(permission, player));
             }
@@ -69,15 +70,16 @@ public class PermissionAction extends NPCShopAction {
     }
 
     @Override
-    public Transaction take(Entity entity, InventoryMultiplexer inventory, int repeats) {
+    public Transaction take(Entity entity, int repeats) {
         if (!(entity instanceof Player))
             return Transaction.fail();
         Player player = (Player) entity;
         Permission perm = Bukkit.getServicesManager().getRegistration(Permission.class).getProvider();
         return Transaction.create(() -> {
             for (String permission : permissions) {
-                if (!perm.playerHas(player, Placeholders.replace(permission, player)))
+                if (!perm.playerHas(player, Placeholders.replace(permission, player))) {
                     return false;
+                }
             }
             return true;
         }, () -> {
@@ -107,7 +109,7 @@ public class PermissionAction extends NPCShopAction {
         @Override
         public void initialise(MenuContext ctx) {
             for (int i = 0; i < 3 * 9; i++) {
-                int idx = i;
+                final int idx = i;
                 ctx.getSlot(i).clear();
                 if (i < base.permissions.size()) {
                     ctx.getSlot(i).setItemStack(new ItemStack(Material.FEATHER), "<f>Set permission",
@@ -122,8 +124,8 @@ public class PermissionAction extends NPCShopAction {
                         }
                         return;
                     }
-                    ctx.getMenu().transition(InputMenus
-                            .stringSetter(() -> idx < base.permissions.size() ? base.permissions.get(idx) : "", res -> {
+                    ctx.getMenu().transition(InputMenus.stringSetter(
+                            () -> idx < base.permissions.size() ? base.permissions.get(idx) : "", (res) -> {
                                 if (res == null) {
                                     if (idx < base.permissions.size()) {
                                         base.permissions.remove(idx);
@@ -159,14 +161,14 @@ public class PermissionAction extends NPCShopAction {
         public ItemStack createMenuItem(NPCShopAction previous) {
             if (supported == null) {
                 try {
-                    supported = Bukkit.getServicesManager().getRegistration(Permission.class) != null
-                            && Bukkit.getServicesManager().getRegistration(Permission.class).getProvider() != null;
+                    supported = Bukkit.getServicesManager().getRegistration(Permission.class).getProvider() != null;
                 } catch (Throwable t) {
                     supported = false;
                 }
             }
-            if (!supported)
+            if (!supported) {
                 return null;
+            }
             String description = null;
             if (previous != null) {
                 PermissionAction old = (PermissionAction) previous;

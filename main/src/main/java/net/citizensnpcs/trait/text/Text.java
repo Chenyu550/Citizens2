@@ -1,19 +1,19 @@
 package net.citizensnpcs.trait.text;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
+import org.bukkit.GameMode;
 import org.bukkit.command.CommandSender;
 import org.bukkit.conversations.Conversation;
 import org.bukkit.conversations.ConversationFactory;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.Plugin;
 
 import com.google.common.collect.Maps;
 
@@ -21,9 +21,9 @@ import net.citizensnpcs.Settings.Setting;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.ai.speech.SpeechContext;
 import net.citizensnpcs.api.event.NPCRightClickEvent;
+import net.citizensnpcs.api.exception.NPCLoadException;
 import net.citizensnpcs.api.persistence.Persist;
 import net.citizensnpcs.api.trait.Trait;
-import net.citizensnpcs.api.trait.TraitEventHandler;
 import net.citizensnpcs.api.trait.TraitName;
 import net.citizensnpcs.api.util.DataKey;
 import net.citizensnpcs.api.util.Messaging;
@@ -45,24 +45,21 @@ public class Text extends Trait implements Runnable, Listener {
     private int delay = -1;
     @Persist(value = "talkitem")
     private String itemInHandPattern = "default";
+    private final Plugin plugin;
     @Persist(value = "random-talker")
     private boolean randomTalker = Setting.DEFAULT_RANDOM_TALKER.asBoolean();
     private double range = Setting.DEFAULT_TALK_CLOSE_RANGE.asDouble();
     @Persist(value = "realistic-looking")
     private boolean realisticLooker = Setting.DEFAULT_REALISTIC_LOOKING.asBoolean();
-    @Persist(value = "send-text-to-chat")
-    private boolean sendTextToChat = true;
-    @Persist(value = "speech-bubble-duration")
-    private int speechBubbleDuration = Setting.DEFAULT_TEXT_SPEECH_BUBBLE_DURATION.asTicks();
     @Persist(value = "speech-bubbles")
     private boolean speechBubbles;
     @Persist(value = "talk-close")
     private boolean talkClose = Setting.DEFAULT_TALK_CLOSE.asBoolean();
-    @Persist
-    private final List<String> text = new ArrayList<>();
+    private final List<String> text = new ArrayList<String>();
 
     public Text() {
         super("text");
+        this.plugin = CitizensAPI.getPlugin();
     }
 
     /**
@@ -90,8 +87,8 @@ public class Text extends Trait implements Runnable, Listener {
     /**
      * Builds a text editor in game for the supplied {@link Player}.
      */
-    public Editor getEditor(Player player) {
-        Conversation conversation = new ConversationFactory(CitizensAPI.getPlugin()).withLocalEcho(false)
+    public Editor getEditor(final Player player) {
+        final Conversation conversation = new ConversationFactory(plugin).withLocalEcho(false)
                 .withEscapeSequence("/npc text").withEscapeSequence("exit").withModality(false)
                 .withFirstPrompt(new TextBasePrompt(this)).buildConversation(player);
         return new Editor() {
@@ -140,26 +137,32 @@ public class Text extends Trait implements Runnable, Listener {
     }
 
     @Override
-    public void load(DataKey key) {
-        range = key.getDouble("range", Setting.DEFAULT_TALK_CLOSE_RANGE.asDouble());
+    public void load(DataKey key) throws NPCLoadException {
+        text.clear();
+        for (DataKey sub : key.getRelative("text").getIntegerSubKeys()) {
+            text.add(sub.getString(""));
+        }
+
+        if (text.isEmpty()) {
+            populateDefaultText();
+        }
+
+        range = key.getDouble("range");
     }
 
-    @TraitEventHandler(@EventHandler)
+    @EventHandler
     private void onRightClick(NPCRightClickEvent event) {
-        if (text.size() == 0)
+        if (!event.getNPC().equals(npc) || text.size() == 0)
             return;
-        String localPattern = "default".equals(itemInHandPattern) ? Setting.TALK_ITEM.asString() : itemInHandPattern;
+        String localPattern = itemInHandPattern.equals("default") ? Setting.TALK_ITEM.asString() : itemInHandPattern;
         if (Util.matchesItemInHand(event.getClicker(), localPattern) && !shouldTalkClose()) {
             talk(event.getClicker());
             event.setDelayedCancellation(true);
         }
     }
 
-    @Override
-    public void onSpawn() {
-        if (text.isEmpty()) {
-            text.addAll(Setting.DEFAULT_TEXT.asList());
-        }
+    private void populateDefaultText() {
+        text.addAll(Setting.DEFAULT_TEXT.asList());
     }
 
     /**
@@ -174,16 +177,19 @@ public class Text extends Trait implements Runnable, Listener {
         if (!npc.isSpawned() || !talkClose || text.size() == 0)
             return;
 
-        for (Player player : CitizensAPI.getLocationLookup().getNearbyVisiblePlayers(npc.getEntity(), range)) {
+        for (Player player : CitizensAPI.getLocationLookup().getNearbyPlayers(npc.getEntity().getLocation(), range)) {
+            if (player.getGameMode() == GameMode.SPECTATOR)
+                continue;
             talk(player);
         }
     }
 
     @Override
     public void save(DataKey key) {
-        key.removeKey("range");
-        if (range != Setting.DEFAULT_TALK_CLOSE_RANGE.asDouble()) {
-            key.setDouble("range", range);
+        key.setDouble("range", range);
+        key.removeKey("text");
+        for (int i = 0; i < text.size(); i++) {
+            key.setString("text." + String.valueOf(i), text.get(i));
         }
     }
 
@@ -210,21 +216,15 @@ public class Text extends Trait implements Runnable, Listener {
             }
             index = currentIndex++;
         }
+
         if (speechBubbles) {
             HologramTrait trait = npc.getOrAddTrait(HologramTrait.class);
-            String replaced = Placeholders.replace(text.get(index), player, npc);
-            for (String line : NEWLINE_PATTERN.split(replaced)) {
-                trait.addTemporaryLine(line, speechBubbleDuration);
-            }
-        }
-        if (sendTextToChat) {
+            trait.addTemporaryLine(Placeholders.replace(text.get(index), player, npc),
+                    Setting.DEFAULT_TEXT_SPEECH_BUBBLE_DURATION.asTicks());
+        } else {
             npc.getDefaultSpeechController().speak(new SpeechContext(text.get(index), player));
         }
         return true;
-    }
-
-    public boolean sendTextToChat() {
-        return sendTextToChat;
     }
 
     /**
@@ -256,10 +256,6 @@ public class Text extends Trait implements Runnable, Listener {
         this.range = range;
     }
 
-    public void setSpeechBubbleDuration(Duration duration) {
-        this.speechBubbleDuration = Util.toTicks(duration);
-    }
-
     /**
      * @return Whether talking close is enabled.
      */
@@ -275,6 +271,7 @@ public class Text extends Trait implements Runnable, Listener {
 
             cooldowns.remove(player.getUniqueId());
         }
+
         sendText(player);
 
         int delay = this.delay == -1
@@ -283,42 +280,35 @@ public class Text extends Trait implements Runnable, Listener {
                 : this.delay;
         if (delay <= 0)
             return;
-        cooldowns.put(player.getUniqueId(), System.currentTimeMillis() + delay * 50);
+        cooldowns.put(player.getUniqueId(), System.currentTimeMillis() + (delay * 50));
     }
 
     /**
      * Toggles talking at random intervals.
      */
     public boolean toggleRandomTalker() {
-        return randomTalker = !randomTalker;
+        return (randomTalker = !randomTalker);
     }
 
     /**
      * Toggles requiring line of sight before talking.
      */
     public boolean toggleRealisticLooking() {
-        return realisticLooker = !realisticLooker;
-    }
-
-    /**
-     * Toggles sending text through chat
-     */
-    public boolean toggleSendTextToChat() {
-        return sendTextToChat = !sendTextToChat;
+        return (realisticLooker = !realisticLooker);
     }
 
     /**
      * Toggles using speech bubbles instead of messages.
      */
     public boolean toggleSpeechBubbles() {
-        return speechBubbles = !speechBubbles;
+        return (speechBubbles = !speechBubbles);
     }
 
     /**
      * Toggles talking to nearby Players.
      */
     public boolean toggleTalkClose() {
-        return talkClose = !talkClose;
+        return (talkClose = !talkClose);
     }
 
     public boolean useRealisticLooking() {
@@ -329,6 +319,5 @@ public class Text extends Trait implements Runnable, Listener {
         return speechBubbles;
     }
 
-    private static final Pattern NEWLINE_PATTERN = Pattern.compile("<br>|\\n");
     private static final Random RANDOM = Util.getFastRandom();
 }

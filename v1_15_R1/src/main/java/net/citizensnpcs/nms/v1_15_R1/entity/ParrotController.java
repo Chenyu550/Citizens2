@@ -16,14 +16,12 @@ import net.citizensnpcs.npc.ai.NPCHolder;
 import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_15_R1.AxisAlignedBB;
-import net.minecraft.server.v1_15_R1.ControllerMoveFlying;
 import net.minecraft.server.v1_15_R1.DamageSource;
 import net.minecraft.server.v1_15_R1.Entity;
 import net.minecraft.server.v1_15_R1.EntityBoat;
 import net.minecraft.server.v1_15_R1.EntityHuman;
 import net.minecraft.server.v1_15_R1.EntityMinecartAbstract;
 import net.minecraft.server.v1_15_R1.EntityParrot;
-import net.minecraft.server.v1_15_R1.EntityPlayer;
 import net.minecraft.server.v1_15_R1.EntityTypes;
 import net.minecraft.server.v1_15_R1.EnumHand;
 import net.minecraft.server.v1_15_R1.EnumPistonReaction;
@@ -54,9 +52,6 @@ public class ParrotController extends MobEntityController {
         public EntityParrotNPC(EntityTypes<? extends EntityParrot> types, World world, NPC npc) {
             super(types, world);
             this.npc = (CitizensNPC) npc;
-            if (npc != null) {
-                this.moveController = new ControllerMoveFlying(this, 10, true);
-            }
         }
 
         @Override
@@ -66,27 +61,24 @@ public class ParrotController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
         @Override
         public boolean a(EntityHuman paramEntityHuman, EnumHand paramEnumHand) {
             // block feeding
-            if (npc == null || !npc.isProtected())
+            if (npc == null || !npc.isProtected()) {
                 return super.a(paramEntityHuman, paramEnumHand);
+            }
             return false;
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public boolean b(Tag<FluidType> tag) {
-            if (npc == null)
+            if (npc == null) {
                 return super.b(tag);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.b(tag);
             if (!npc.isPushableByFluids()) {
@@ -120,11 +112,6 @@ public class ParrotController extends MobEntityController {
         @Override
         public boolean d(NBTTagCompound save) {
             return npc == null ? super.d(save) : false;
-        }
-
-        @Override
-        public float dp() {
-            return NMS.getJumpPower(npc, super.dp());
         }
 
         @Override
@@ -188,8 +175,9 @@ public class ParrotController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
     }

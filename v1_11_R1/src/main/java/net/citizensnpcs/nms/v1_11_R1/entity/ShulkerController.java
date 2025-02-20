@@ -1,6 +1,7 @@
 package net.citizensnpcs.nms.v1_11_R1.entity;
 
 import org.bukkit.Bukkit;
+import org.bukkit.DyeColor;
 import org.bukkit.craftbukkit.v1_11_R1.CraftServer;
 import org.bukkit.craftbukkit.v1_11_R1.entity.CraftEntity;
 import org.bukkit.craftbukkit.v1_11_R1.entity.CraftShulker;
@@ -18,7 +19,6 @@ import net.minecraft.server.v1_11_R1.AxisAlignedBB;
 import net.minecraft.server.v1_11_R1.BlockPosition;
 import net.minecraft.server.v1_11_R1.Entity;
 import net.minecraft.server.v1_11_R1.EntityAIBodyControl;
-import net.minecraft.server.v1_11_R1.EntityPlayer;
 import net.minecraft.server.v1_11_R1.EntityShulker;
 import net.minecraft.server.v1_11_R1.IBlockData;
 import net.minecraft.server.v1_11_R1.NBTTagCompound;
@@ -61,31 +61,22 @@ public class ShulkerController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
         public void A_() {
-            super.A_();
             if (npc != null) {
                 npc.update();
+            } else {
+                super.A_();
             }
         }
 
         @Override
         public int aY() {
             return NMS.getFallDistance(npc, super.aY());
-        }
-
-        @Override
-        public boolean bg() {
-            return npc == null ? super.bg() : npc.isPushableByFluids();
         }
 
         @Override
@@ -99,18 +90,12 @@ public class ShulkerController extends MobEntityController {
         }
 
         @Override
-        public float cl() {
-            return NMS.getJumpPower(npc, super.cl());
-        }
-
-        @Override
         public void collide(net.minecraft.server.v1_11_R1.Entity entity) {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.collide(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
         }
 
         @Override
@@ -149,9 +134,8 @@ public class ShulkerController extends MobEntityController {
 
         @Override
         public CraftEntity getBukkitEntity() {
-            if (npc != null && !(bukkitEntity instanceof NPCHolder)) {
+            if (npc != null && !(bukkitEntity instanceof NPCHolder))
                 bukkitEntity = new ShulkerNPC(this);
-            }
             return super.getBukkitEntity();
         }
 
@@ -174,10 +158,11 @@ public class ShulkerController extends MobEntityController {
 
         @Override
         public boolean m_() {
-            if (npc == null || !npc.isFlyable())
+            if (npc == null || !npc.isFlyable()) {
                 return super.m_();
-            else
+            } else {
                 return false;
+            }
         }
 
         @Override
@@ -188,13 +173,12 @@ public class ShulkerController extends MobEntityController {
         }
 
         @Override
-        protected boolean o() {
-            return npc == null || npc.useMinecraftAI() ? super.o() : false;
+        protected EntityAIBodyControl s() {
+            return new EntityAIBodyControl(this);
         }
 
-        @Override
-        protected EntityAIBodyControl s() {
-            return npc == null ? super.s() : new EntityAIBodyControl(this);
+        public void setColor(DyeColor color) {
+            this.datawatcher.set(bw, color.getWoolData());
         }
 
         @Override

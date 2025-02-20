@@ -16,7 +16,6 @@ import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_10_R1.AxisAlignedBB;
 import net.minecraft.server.v1_10_R1.Entity;
-import net.minecraft.server.v1_10_R1.EntityPlayer;
 import net.minecraft.server.v1_10_R1.EntityPolarBear;
 import net.minecraft.server.v1_10_R1.NBTTagCompound;
 import net.minecraft.server.v1_10_R1.SoundEffect;
@@ -60,23 +59,13 @@ public class PolarBearController extends MobEntityController {
 
         @Override
         public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a(entity, (float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
         }
 
         @Override
         public int aY() {
             return NMS.getFallDistance(npc, super.aY());
-        }
-
-        @Override
-        public boolean bg() {
-            return npc == null ? super.bg() : npc.isPushableByFluids();
         }
 
         @Override
@@ -87,11 +76,6 @@ public class PolarBearController extends MobEntityController {
         @Override
         protected SoundEffect bW() {
             return NMSImpl.getSoundEffect(npc, super.bW(), NPC.Metadata.HURT_SOUND);
-        }
-
-        @Override
-        public float ck() {
-            return NMS.getJumpPower(npc, super.ck());
         }
 
         @Override
@@ -124,9 +108,8 @@ public class PolarBearController extends MobEntityController {
 
         @Override
         public CraftEntity getBukkitEntity() {
-            if (npc != null && !(bukkitEntity instanceof NPCHolder)) {
+            if (npc != null && !(bukkitEntity instanceof NPCHolder))
                 bukkitEntity = new PolarBearNPC(this);
-            }
             return super.getBukkitEntity();
         }
 

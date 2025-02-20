@@ -158,14 +158,14 @@ public class ArmorStandTrait extends Trait {
      * @see ArmorStand#setArms(boolean)
      */
     public void setHasArms(boolean arms) {
-        hasarms = arms;
+        this.hasarms = arms;
     }
 
     /**
      * @see ArmorStand#setBasePlate(boolean)
      */
     public void setHasBaseplate(boolean baseplate) {
-        hasbaseplate = baseplate;
+        this.hasbaseplate = baseplate;
     }
 
     /**

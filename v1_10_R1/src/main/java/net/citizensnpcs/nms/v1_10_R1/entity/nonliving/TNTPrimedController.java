@@ -12,10 +12,8 @@ import net.citizensnpcs.nms.v1_10_R1.entity.MobEntityController;
 import net.citizensnpcs.nms.v1_10_R1.util.NMSBoundingBox;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_10_R1.AxisAlignedBB;
-import net.minecraft.server.v1_10_R1.EntityPlayer;
 import net.minecraft.server.v1_10_R1.EntityTNTPrimed;
 import net.minecraft.server.v1_10_R1.NBTTagCompound;
 import net.minecraft.server.v1_10_R1.World;
@@ -45,16 +43,6 @@ public class TNTPrimedController extends MobEntityController {
         @Override
         public void a(AxisAlignedBB bb) {
             super.a(NMSBoundingBox.makeBB(npc, bb));
-        }
-
-        @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
-        }
-
-        @Override
-        public boolean bg() {
-            return npc == null ? super.bg() : npc.isPushableByFluids();
         }
 
         @Override
@@ -93,15 +81,9 @@ public class TNTPrimedController extends MobEntityController {
             return npc;
         }
 
-        private int fuseRenewalDelay = 9;
         @Override
         public void m() {
             if (npc != null) {
-                if (fuseRenewalDelay-- <= 0) {
-                    setFuseTicks(Integer.MAX_VALUE - 1);
-                    setFuseTicks(Integer.MAX_VALUE);
-                    fuseRenewalDelay = 9;
-                }
                 npc.update();
             } else {
                 super.m();

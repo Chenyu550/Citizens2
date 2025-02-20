@@ -17,6 +17,7 @@ import net.citizensnpcs.npc.ai.NPCHolder;
 import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.server.v1_16_R3.AxisAlignedBB;
+import net.minecraft.server.v1_16_R3.BlockPosition;
 import net.minecraft.server.v1_16_R3.ControllerLook;
 import net.minecraft.server.v1_16_R3.ControllerMove;
 import net.minecraft.server.v1_16_R3.DamageSource;
@@ -25,10 +26,10 @@ import net.minecraft.server.v1_16_R3.Entity;
 import net.minecraft.server.v1_16_R3.EntityBoat;
 import net.minecraft.server.v1_16_R3.EntityMinecartAbstract;
 import net.minecraft.server.v1_16_R3.EntityPhantom;
-import net.minecraft.server.v1_16_R3.EntityPlayer;
 import net.minecraft.server.v1_16_R3.EntityTypes;
 import net.minecraft.server.v1_16_R3.EnumPistonReaction;
 import net.minecraft.server.v1_16_R3.FluidType;
+import net.minecraft.server.v1_16_R3.IBlockData;
 import net.minecraft.server.v1_16_R3.NBTTagCompound;
 import net.minecraft.server.v1_16_R3.SoundEffect;
 import net.minecraft.server.v1_16_R3.Tag;
@@ -51,7 +52,6 @@ public class PhantomController extends MobEntityController {
         private ControllerLook oldLookController;
 
         private ControllerMove oldMoveController;
-
         public EntityPhantomNPC(EntityTypes<? extends EntityPhantom> types, World world) {
             this(types, world, null);
         }
@@ -83,26 +83,37 @@ public class PhantomController extends MobEntityController {
         }
 
         @Override
-        public boolean a(EntityPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.a(player));
+        protected void a(double d0, boolean flag, IBlockData block, BlockPosition blockposition) {
+            if (npc == null || !npc.isFlyable()) {
+                super.a(d0, flag, block, blockposition);
+            }
         }
 
         @Override
         public void a(float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a((float) evt.getStrength(),
+            NMS.callKnockbackEvent(npc, strength, dx, dz, (evt) -> super.a((float) evt.getStrength(),
                     evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
         }
 
         @Override
         public boolean a(Tag<FluidType> tag, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.a(tag, d0);
+            }
             Vec3D old = getMot().add(0, 0, 0);
             boolean res = super.a(tag, d0);
             if (!npc.isPushableByFluids()) {
                 setMot(old);
             }
             return res;
+        }
+
+        @Override
+        public boolean b(float f, float f1) {
+            if (npc == null || !npc.isFlyable()) {
+                return super.b(f, f1);
+            }
+            return false;
         }
 
         @Override
@@ -122,9 +133,8 @@ public class PhantomController extends MobEntityController {
             // this method is called by both the entities involved - cancelling
             // it will not stop the NPC from moving.
             super.collide(entity);
-            if (npc != null) {
+            if (npc != null)
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
         }
 
         @Override
@@ -133,15 +143,19 @@ public class PhantomController extends MobEntityController {
         }
 
         @Override
-        public float dJ() {
-            return NMS.getJumpPower(npc, super.dJ());
-        }
-
-        @Override
         public boolean eG() {
             if (npc == null || !npc.isProtected())
                 return super.eG();
             return false;
+        }
+
+        @Override
+        public void g(Vec3D vec3d) {
+            if (npc == null || !npc.isFlyable()) {
+                super.g(vec3d);
+            } else {
+                NMSImpl.flyingMoveLogic(this, vec3d);
+            }
         }
 
         @Override
@@ -186,6 +200,15 @@ public class PhantomController extends MobEntityController {
         }
 
         @Override
+        public boolean isClimbing() {
+            if (npc == null || !npc.isFlyable()) {
+                return super.isClimbing();
+            } else {
+                return false;
+            }
+        }
+
+        @Override
         public boolean isLeashed() {
             return NMSImpl.isLeashed(npc, super::isLeashed, this);
         }
@@ -217,8 +240,9 @@ public class PhantomController extends MobEntityController {
 
         @Override
         protected boolean n(Entity entity) {
-            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract))
+            if (npc != null && (entity instanceof EntityBoat || entity instanceof EntityMinecartAbstract)) {
                 return !npc.isProtected();
+            }
             return super.n(entity);
         }
     }

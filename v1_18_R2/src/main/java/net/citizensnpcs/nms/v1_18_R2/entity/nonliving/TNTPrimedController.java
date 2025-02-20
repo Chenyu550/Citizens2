@@ -14,12 +14,10 @@ import net.citizensnpcs.nms.v1_18_R2.util.NMSBoundingBox;
 import net.citizensnpcs.nms.v1_18_R2.util.NMSImpl;
 import net.citizensnpcs.npc.CitizensNPC;
 import net.citizensnpcs.npc.ai.NPCHolder;
-import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -50,11 +48,6 @@ public class TNTPrimedController extends MobEntityController {
         public EntityTNTPrimedNPC(EntityType<? extends PrimedTnt> types, Level level, NPC npc) {
             super(types, level);
             this.npc = (CitizensNPC) npc;
-        }
-
-        @Override
-        public boolean broadcastToPlayer(ServerPlayer player) {
-            return NMS.shouldBroadcastToPlayer(npc, () -> super.broadcastToPlayer(player));
         }
 
         @Override
@@ -116,16 +109,9 @@ public class TNTPrimedController extends MobEntityController {
             return NMSImpl.teleportAcrossWorld(this, worldserver, location);
         }
 
-        private int fuseRenewalDelay = 9; // give client some time to make the animation look vanilla-like
         @Override
         public void tick() {
             if (npc != null) {
-                if (fuseRenewalDelay-- <= 0) {
-                    // DataWatcher refuses to mark dirty if we don't give different values
-                    setFuse(Integer.MAX_VALUE - 1);
-                    setFuse(Integer.MAX_VALUE);
-                    fuseRenewalDelay = 9;
-                }
                 npc.update();
             } else {
                 super.tick();
@@ -134,8 +120,9 @@ public class TNTPrimedController extends MobEntityController {
 
         @Override
         public boolean updateFluidHeightAndDoFluidPushing(TagKey<Fluid> tagkey, double d0) {
-            if (npc == null)
+            if (npc == null) {
                 return super.updateFluidHeightAndDoFluidPushing(tagkey, d0);
+            }
             Vec3 old = getDeltaMovement().add(0, 0, 0);
             boolean res = super.updateFluidHeightAndDoFluidPushing(tagkey, d0);
             if (!npc.isPushableByFluids()) {
