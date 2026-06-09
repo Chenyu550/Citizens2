@@ -19,7 +19,6 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.bukkit.Art;
 import org.bukkit.Bukkit;
@@ -61,7 +60,6 @@ import org.json.simple.parser.JSONParser;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
@@ -73,6 +71,7 @@ import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.ai.PathfinderType;
 import net.citizensnpcs.api.ai.TeleportStuckAction;
 import net.citizensnpcs.api.ai.speech.SpeechContext;
+import net.citizensnpcs.api.ai.speech.event.NPCSpeechEvent;
 import net.citizensnpcs.api.ai.tree.StatusMapper;
 import net.citizensnpcs.api.command.Arg;
 import net.citizensnpcs.api.command.Arg.CompletionsProvider.OptionalKeyedCompletions;
@@ -94,8 +93,6 @@ import net.citizensnpcs.api.event.NPCTeleportEvent;
 import net.citizensnpcs.api.event.PlayerCloneNPCEvent;
 import net.citizensnpcs.api.event.PlayerCreateNPCEvent;
 import net.citizensnpcs.api.event.SpawnReason;
-import net.citizensnpcs.api.expr.CompiledExpression;
-import net.citizensnpcs.api.expr.ExpressionEngine.ExpressionCompileException;
 import net.citizensnpcs.api.expr.ExpressionScope;
 import net.citizensnpcs.api.gui.InventoryMenu;
 import net.citizensnpcs.api.npc.BlockBreaker;
@@ -179,8 +176,6 @@ import net.citizensnpcs.trait.ScoreboardTrait;
 import net.citizensnpcs.trait.SheepTrait;
 import net.citizensnpcs.trait.ShopTrait;
 import net.citizensnpcs.trait.ShopTrait.NPCShop;
-import net.citizensnpcs.trait.ShopTrait.NPCShopItem;
-import net.citizensnpcs.trait.ShopTrait.NPCShopPage;
 import net.citizensnpcs.trait.SitTrait;
 import net.citizensnpcs.trait.SkinLayers;
 import net.citizensnpcs.trait.SkinLayers.Layer;
@@ -190,7 +185,6 @@ import net.citizensnpcs.trait.TargetableTrait;
 import net.citizensnpcs.trait.WitherTrait;
 import net.citizensnpcs.trait.WolfModifiers;
 import net.citizensnpcs.trait.shop.StoredShops;
-import net.citizensnpcs.trait.versioned.TextDisplayTrait;
 import net.citizensnpcs.trait.waypoint.WanderWaypointProvider;
 import net.citizensnpcs.trait.waypoint.Waypoints;
 import net.citizensnpcs.util.Anchor;
@@ -1387,7 +1381,7 @@ public class NPCCommands {
 
     @Command(
             aliases = { "npc" },
-            usage = "hologram add [text] (--duration [duration]) | insert [line #] [text] | set [line #] [text] | remove [line #] | edit_npc [template | name | line #] | clear | lineheight [height] | viewrange [range] | margintop [line #] [margin] | marginbottom [line #] [margin] | bgcolor [line #] [color]",
+            usage = "hologram add [text] (--duration [duration]) | insert [line #] [text] | set [line #] [text] | remove [line #] | edit_npc [template | name | line #] | clear | lineheight [height] | viewrange [range] | margintop [line #] [margin] | marginbottom [line #] [margin]",
             desc = "",
             modifiers = { "hologram" },
             min = 1,
@@ -1397,13 +1391,9 @@ public class NPCCommands {
             @Arg(
                     value = 1,
                     completions = { "add", "insert", "set", "edit_npc", "remove", "clear", "lineheight", "viewrange",
-                            "bgcolor", "margintop", "marginbottom" }) String action,
+                            "margintop", "marginbottom" }) String action,
             @Arg(value = 2, completionsProvider = HologramTrait.TabCompletions.class) String secondCompletion,
             @Flag("duration") Duration duration) throws CommandException {
-        if (npc.hasTrait(ClickRedirectTrait.class)) {
-            npc = npc.getOrAddTrait(ClickRedirectTrait.class).getRedirectToNPC();
-            selector.select(sender, npc);
-        }
         HologramTrait trait = npc.getOrAddTrait(HologramTrait.class);
         if (args.argsLength() == 1) {
             String output = Messaging.tr(Messages.HOLOGRAM_DESCRIBE_HEADER, npc.getName());
@@ -1429,32 +1419,6 @@ public class NPCCommands {
 
             trait.setLine(idx, args.getJoinedStrings(3));
             Messaging.sendTr(sender, Messages.HOLOGRAM_LINE_SET, idx, args.getJoinedStrings(3));
-        } else if (action.equalsIgnoreCase("bgcolor")) {
-            HologramRenderer hr = null;
-            if (args.argsLength() <= 3)
-                throw new CommandException(Messages.HOLOGRAM_INVALID_LINE);
-
-            if (args.getString(2).equals("name")) {
-                hr = trait.getNameRenderer();
-            } else if (args.getString(2).equals("template")) {
-                hr = trait.getTemplateRenderer();
-            } else {
-                int idx = args.getString(2).equals("bottom") ? 0
-                        : args.getString(2).equals("top") ? trait.getLines().size() - 1
-                                : Math.max(0, args.getInteger(2));
-                if (idx >= trait.getLines().size())
-                    throw new CommandException(Messages.HOLOGRAM_INVALID_LINE);
-                Iterator<HologramRenderer> itr = trait.getHologramRenderers().iterator();
-                for (int i = 0; i <= idx; i++, hr = itr.next()) {
-                }
-            }
-            if (hr != null && hr.getTemplateNPC() != null) {
-                if (hr.getTemplateNPC().getOrAddTrait(MobType.class).getType() != EntityType.TEXT_DISPLAY)
-                    throw new CommandException();
-                hr.getTemplateNPC().getOrAddTrait(TextDisplayTrait.class)
-                        .setBackgroundColor(SpigotUtil.parseColor(args.getString(3)));
-                Messaging.sendTr(sender, Messages.HOLOGRAM_BACKGROUND_COLOR_SET, args.getString(3));
-            }
         } else if (action.equalsIgnoreCase("edit_npc")) {
             HologramRenderer hr = null;
             if (args.argsLength() == 2)
@@ -1556,8 +1520,6 @@ public class NPCCommands {
 
             trait.setMargin(idx, "bottom", args.getDouble(3));
             Messaging.sendTr(sender, Messages.HOLOGRAM_MARGIN_SET, idx, "bottom", args.getDouble(3));
-        } else {
-            throw new CommandUsageException();
         }
     }
 
@@ -1835,7 +1797,7 @@ public class NPCCommands {
 
     @Command(
             aliases = { "npc" },
-            usage = "list (page) (-a[ll]) --owner [owner] --type [type] --registry [name] --tag [tag] --filter [filter expression]",
+            usage = "list (page) ((-a) --owner (owner) --type (type) --char (char) --registry (name))",
             desc = "",
             flags = "a",
             modifiers = { "list" },
@@ -1844,8 +1806,8 @@ public class NPCCommands {
             permission = "citizens.npc.list")
     @Requirements
     public void list(CommandContext args, CommandSender sender, NPC npc, @Flag("owner") String owner,
-            @Flag("type") EntityType type, @Flag("page") Integer page, @Flag("registry") String registry,
-            @Flag("tag") String tag, @Flag("filter") String filter) throws CommandException {
+            @Flag("type") EntityType type, @Flag("page") Integer page, @Flag("registry") String registry)
+            throws CommandException {
         NPCRegistry source = registry != null ? CitizensAPI.getNamedNPCRegistry(registry)
                 : CitizensAPI.getNPCRegistry();
         if (source == null)
@@ -1855,29 +1817,6 @@ public class NPCCommands {
         if (args.hasFlag('a')) {
             for (NPC add : source.sorted()) {
                 npcs.add(add);
-            }
-        } else if (filter != null && sender.hasPermission("citizens.admin")) {
-            try {
-                CompiledExpression expr = CitizensAPI.getExpressionRegistry().compile(filter);
-                for (NPC add : source.sorted()) {
-                    ExpressionScope scope = new ExpressionScope();
-                    scope.setNPC(npc);
-                    if (sender instanceof Player) {
-                        scope.setPlayer((Player) sender);
-                    }
-                    if (expr.evaluateAsBoolean(scope)) {
-                        npcs.add(add);
-                    }
-                }
-            } catch (ExpressionCompileException e) {
-                throw new CommandException(e.getMessage());
-            }
-        } else if (tag != null) {
-            for (NPC add : source.sorted()) {
-                if (add.hasTrait(ScoreboardTrait.class)
-                        && add.getOrAddTrait(ScoreboardTrait.class).getTags().contains(tag)) {
-                    npcs.add(add);
-                }
             }
         } else if (owner != null) {
             for (NPC add : source.sorted()) {
@@ -2109,7 +2048,7 @@ public class NPCCommands {
             permission = "citizens.npc.minecart")
     public void minecart(CommandContext args, CommandSender sender, NPC npc, @Flag("item") String item)
             throws CommandException {
-        if (!npc.getOrAddTrait(MobType.class).getType().name().contains("MINECART"))
+        if (!npc.getOrAddTrait(MobType.class).getType().name().contains("MINECRAFT"))
             throw new CommandUsageException();
         if (args.hasValueFlag("offset")) {
             npc.data().setPersistent(NPC.Metadata.MINECART_OFFSET, args.getFlagInteger("offset"));
@@ -3277,53 +3216,6 @@ public class NPCCommands {
 
     @Command(
             aliases = { "npc" },
-            usage = "shopitem [shop name/id|all] [reset_purchases] [item index|all] (--page [page])",
-            desc = "",
-            modifiers = { "shopitem" },
-            min = 4,
-            max = 5,
-            permission = "citizens.npc.shopitem")
-    @Requirements(selected = false, ownership = true)
-    public void shopitem(CommandContext args, CommandSender sender, NPC npc, @Arg(1) String shopName,
-            @Arg(value = 2, completions = { "reset_purchases" }) String operation, @Arg(3) String index,
-            @Flag("page") Integer page, @Flag("player") UUID playerUUID) throws CommandException {
-        if (!"all".equals(shopName) && shops.getShop(shopName) == null)
-            throw new CommandException(Messages.SHOP_NOT_FOUND, shopName);
-        if (page == null || page < 1) {
-            page = 1;
-        }
-        page -= 1; // 1-index
-
-        for (NPCShop shop : shopName.equals("all")
-                ? Iterables.concat(shops.globalShops.values(), shops.npcShops.values())
-                : ImmutableList.of(shops.getShop(shopName))) {
-            if (!shop.canEdit(npc, sender))
-                throw new NoPermissionsException();
-
-            Stream<NPCShopItem> stream = null;
-            if (index.equals("all")) {
-                stream = shop.getPages().stream().flatMap(p -> p.getItems().stream());
-            } else {
-                NPCShopPage shopPage = shop.getPages().get(page);
-                if (page < shop.getPages().size())
-                    throw new CommandException(Messages.SHOP_PAGE_NOT_FOUND, page + 1, shop.getPages().size());
-                NPCShopItem item = shopPage.getItem(Integer.parseInt(index) + 1);
-                if (item == null)
-                    throw new CommandException(Messages.SHOP_ITEM_NOT_FOUND, index);
-                stream = Stream.of(item);
-            }
-            if ("reset_purchases".equals(operation)) {
-                stream.forEach(i -> i.resetPurchaseHistory());
-            } else if ("reset_player_purchases".equals(operation)) {
-                stream.forEach(i -> i.resetPurchaseHistory(playerUUID));
-            } else {
-                throw new CommandUsageException();
-            }
-        }
-    }
-
-    @Command(
-            aliases = { "npc" },
             usage = "showshop (name)",
             desc = "",
             modifiers = { "showshop" },
@@ -3454,7 +3346,7 @@ public class NPCCommands {
                     String textureEncoded = (String) texture.get("value");
                     String signature = (String) texture.get("signature");
 
-                    CitizensAPI.getScheduler().checkedRunEntityTask(npc.getEntity(), () -> {
+                    CitizensAPI.getScheduler().runEntityTask(npc.getEntity(), () -> {
                         try {
                             trait.setSkinPersistent(uuid, signature, textureEncoded);
                             Messaging.sendTr(sender, Messages.SKIN_URL_SET, npc.getName(), url == null ? file : url);
@@ -3733,13 +3625,13 @@ public class NPCCommands {
             return;
         }
         if (range != null) {
-            npc.getEntity().getNearbyEntities(range, range, range).stream()
-                    .filter(e -> !CitizensAPI.getNPCRegistry().isNPC(e)).forEach(context::addRecipient);
+            npc.getEntity().getNearbyEntities(range, range, range).forEach(e -> {
+                if (!CitizensAPI.getNPCRegistry().isNPC(e)) {
+                    context.addRecipient(e);
+                }
+            });
         }
-        if (npc.isSpawned()) {
-            context.setTalker(npc.getEntity());
-            npc.speak(context);
-        }
+        Bukkit.getServer().getPluginManager().callEvent(new NPCSpeechEvent(npc, context));
     }
 
     @Command(
@@ -4032,19 +3924,6 @@ public class NPCCommands {
             Messaging.sendTr(sender, Messages.TOGGLED_USING_HELD_ITEM,
                     Boolean.toString(npc.data().get(NPC.Metadata.USING_HELD_ITEM)));
         }
-    }
-
-    @Command(
-            aliases = { "npc" },
-            usage = "velocity [x] [y] [z]",
-            desc = "",
-            modifiers = { "velocity", "vel" },
-            min = 4,
-            max = 4,
-            permission = "citizens.npc.velocity")
-    public void velocity(CommandContext args, CommandSender sender, NPC npc, @Arg(1) double x, @Arg(2) double y,
-            @Arg(3) double z) {
-        npc.getEntity().setVelocity(new Vector(x, y, z));
     }
 
     @Command(

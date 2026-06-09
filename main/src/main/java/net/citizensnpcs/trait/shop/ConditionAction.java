@@ -39,6 +39,12 @@ public class ConditionAction extends NPCShopAction {
         }
     }
 
+    private ExpressionScope createTransactionScope(Player player) {
+        ExpressionScope scope = new ExpressionScope();
+        scope.setPlayer(player);
+        return scope;
+    }
+
     @Override
     public String describe() {
         return condition;
@@ -56,12 +62,10 @@ public class ConditionAction extends NPCShopAction {
         if (expression == null) {
             compile();
         }
-        return Transaction.create(
-                () -> expression
-                        .evaluateAsBoolean(ExpressionScope.create(entity instanceof Player ? (Player) entity : null)),
-                () -> {
-                }, () -> {
-                });
+        ExpressionScope scope = createTransactionScope(entity instanceof Player ? (Player) entity : null);
+        return Transaction.create(() -> expression.evaluateAsBoolean(scope), () -> {
+        }, () -> {
+        });
     }
 
     public void setExpression(String expression) {
@@ -76,12 +80,10 @@ public class ConditionAction extends NPCShopAction {
         if (expression == null) {
             compile();
         }
-        return Transaction.create(
-                () -> expression
-                        .evaluateAsBoolean(ExpressionScope.create(entity instanceof Player ? (Player) entity : null)),
-                () -> {
-                }, () -> {
-                });
+        ExpressionScope scope = createTransactionScope(entity instanceof Player ? (Player) entity : null);
+        return Transaction.create(() -> expression.evaluateAsBoolean(scope), () -> {
+        }, () -> {
+        });
     }
 
     public static class ConditionActionGUI implements GUI {

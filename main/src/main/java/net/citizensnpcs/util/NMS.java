@@ -781,13 +781,6 @@ public class NMS {
                 }
                 break;
         }
-        switch (version[0]) {
-            case 26:
-                if (version[1] == 1) {
-                    rev = "v26_1_R1";
-                }
-                break;
-        }
         Class<?> entity = null;
         try {
             entity = Class.forName("net.minecraft.world.entity.Entity");
@@ -853,7 +846,7 @@ public class NMS {
     }
 
     public static void removeFromWorld(Entity entity) {
-        CitizensAPI.getScheduler().checkedRunEntityTask(entity, () -> BRIDGE.removeFromWorld(entity));
+        CitizensAPI.getScheduler().checkedRunRegionTask(entity.getLocation(), () -> BRIDGE.removeFromWorld(entity));
     }
 
     public static void removeHookIfNecessary(FishHook entity) {

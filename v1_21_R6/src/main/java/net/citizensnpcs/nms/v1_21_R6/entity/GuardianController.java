@@ -20,7 +20,6 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.monster.Guardian;
 import net.minecraft.world.entity.vehicle.AbstractMinecart;
 import net.minecraft.world.entity.vehicle.Boat;
@@ -45,7 +44,6 @@ public class GuardianController extends MobEntityController {
 
     public static class EntityGuardianNPC extends Guardian implements NPCHolder {
         private final CitizensNPC npc;
-        private MoveControl oldMoveController;
 
         public EntityGuardianNPC(EntityType<? extends Guardian> types, Level level) {
             this(types, level, null);
@@ -54,31 +52,21 @@ public class GuardianController extends MobEntityController {
         public EntityGuardianNPC(EntityType<? extends Guardian> types, Level level, NPC npc) {
             super(types, level);
             this.npc = (CitizensNPC) npc;
-            if (npc != null) {
-                this.oldMoveController = this.moveControl;
-                this.moveControl = new MoveControl(this);
-            }
         }
 
         @Override
         public void aiStep() {
             if (npc == null) {
                 super.aiStep();
-                return;
+            } else {
+                NMSImpl.updateMinecraftAIState(npc, this);
+                if (!npc.useMinecraftAI()) {
+                    NMSImpl.updateAI(this);
+                } else {
+                    super.aiStep();
+                }
+                npc.update();
             }
-            NMSImpl.updateMinecraftAIState(npc, this);
-            boolean wasOnGround = onGround();
-            if (!npc.useMinecraftAI()) {
-                setOnGround(false);
-            }
-            super.aiStep();
-            setOnGround(wasOnGround);
-            if (!npc.useMinecraftAI() && moveControl == oldMoveController) {
-                this.moveControl = new MoveControl(this);
-            } else if (moveControl != oldMoveController) {
-                this.moveControl = this.oldMoveController;
-            }
-            npc.update();
         }
 
         @Override

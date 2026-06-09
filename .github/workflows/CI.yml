@@ -1,0 +1,93 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - master
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional tag to create or update a GitHub Release with the built jar."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Citizens
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.event.release.tag_name || github.ref }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build
+        run: mvn -B -ntp -DskipTests -Dmaven.javadoc.skip=true -DBUILD_NUMBER=${{ github.run_number }} clean package
+
+      - name: Locate plugin jar
+        id: jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar="$(ls dist/target/Citizens-*.jar | head -n 1)"
+          echo "path=$jar" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$jar")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.jar.outputs.name }}
+          path: ${{ steps.jar.outputs.path }}
+          if-no-files-found: error
+
+      - name: Resolve release tag
+        id: release
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''
+        shell: bash
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_EVENT_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          tag="${INPUT_RELEASE_TAG:-${RELEASE_EVENT_TAG:-${GITHUB_REF_NAME:-}}}"
+          if [ -z "$tag" ]; then
+            echo "Could not resolve release tag." >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Sync jar to GitHub Release
+        if: steps.release.outputs.tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JAR_PATH: ${{ steps.jar.outputs.path }}
+          TAG_NAME: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "$JAR_PATH" --clobber
+          else
+            gh release create "$TAG_NAME" "$JAR_PATH" \
+              --title "$TAG_NAME" \
+              --notes "Automated Citizens build for $TAG_NAME."
+          fi

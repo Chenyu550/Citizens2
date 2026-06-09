@@ -376,8 +376,7 @@ public class CommandTrait extends Trait {
                             if (temporaryPermissionsDuration <= 0) {
                                 attachment.remove();
                             } else {
-                                CitizensAPI.getScheduler().runEntityTaskLater(player, attachment::remove,
-                                        temporaryPermissionsDuration);
+                                CitizensAPI.getScheduler().runEntityTask(player, attachment::remove);
                             }
                             return;
                         }

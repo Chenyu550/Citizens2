@@ -17,7 +17,6 @@ import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.AbstractNPC;
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.api.util.Messaging;
-import net.citizensnpcs.api.util.SpigotUtil;
 import net.citizensnpcs.api.util.schedulers.SchedulerRunnable;
 import net.citizensnpcs.npc.ai.NPCHolder;
 import net.citizensnpcs.trait.PacketNPC;
@@ -94,11 +93,7 @@ public class PlayerUpdateTask extends SchedulerRunnable {
 
         @Override
         public void run() {
-            if (SpigotUtil.isFoliaServer()) {
-                CitizensAPI.getScheduler().runEntityTask(entity, tick);
-            } else {
-                tick.run();
-            }
+            CitizensAPI.getScheduler().runEntityTask(entity, tick);
         }
     }
 

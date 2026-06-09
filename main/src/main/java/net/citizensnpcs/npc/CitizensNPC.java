@@ -1,9 +1,8 @@
 package net.citizensnpcs.npc;
 
-import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -20,16 +19,14 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.SetMultimap;
 
 import net.citizensnpcs.NPCNeedsRespawnEvent;
 import net.citizensnpcs.Settings.Setting;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.CitizensPlugin;
 import net.citizensnpcs.api.ai.Navigator;
-import net.citizensnpcs.api.ai.speech.SpeechContext;
-import net.citizensnpcs.api.ai.speech.Talkable;
-import net.citizensnpcs.api.ai.speech.TalkableEntity;
-import net.citizensnpcs.api.ai.speech.event.NPCSpeechEvent;
 import net.citizensnpcs.api.astar.pathfinder.MinecraftBlockExaminer;
 import net.citizensnpcs.api.event.DespawnReason;
 import net.citizensnpcs.api.event.NPCDespawnEvent;
@@ -60,6 +57,7 @@ import net.citizensnpcs.trait.ScoreboardTrait;
 import net.citizensnpcs.trait.SitTrait;
 import net.citizensnpcs.trait.SkinLayers;
 import net.citizensnpcs.trait.SneakTrait;
+import net.citizensnpcs.util.ChunkCoord;
 import net.citizensnpcs.util.Messages;
 import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.PlayerAnimation;
@@ -67,6 +65,7 @@ import net.citizensnpcs.util.PlayerUpdateTask;
 import net.citizensnpcs.util.Util;
 
 public class CitizensNPC extends AbstractNPC {
+    private ChunkCoord cachedCoord;
     private EntityController entityController;
     private final CitizensNavigator navigator = new CitizensNavigator(this);
     private int updateCounter = 0;
@@ -96,7 +95,7 @@ public class CitizensNPC extends AbstractNPC {
                     getEntity().isValid(), ", DespawnReason." + reason);
             return false;
         }
-        boolean keepSelected = hasTrait(Spawned.class) ? getTraitNullable(Spawned.class).shouldSpawn() : false;
+        boolean keepSelected = getOrAddTrait(Spawned.class).shouldSpawn();
         if (!keepSelected) {
             data().remove("selectors");
         }
@@ -109,7 +108,9 @@ public class CitizensNPC extends AbstractNPC {
             }
         }
         navigator.onDespawn();
-        traits.forEach(trait -> trait.onDespawn(reason));
+        traits.forEach(trait -> {
+            trait.onDespawn(reason);
+        });
         Messaging.debug("Despawned", this, "DespawnReason." + reason);
 
         if (reason == DespawnReason.DEATH) {
@@ -118,6 +119,12 @@ public class CitizensNPC extends AbstractNPC {
             entityController.remove();
         }
         return true;
+    }
+
+    @Override
+    public void destroy() {
+        super.destroy();
+        resetCachedCoord();
     }
 
     @Override
@@ -203,6 +210,17 @@ public class CitizensNPC extends AbstractNPC {
     public boolean requiresNameHologram() {
         return !data().has(NPC.Metadata.HOLOGRAM_RENDERER)
                 && (super.requiresNameHologram() || Setting.ALWAYS_USE_NAME_HOLOGRAM.asBoolean());
+    }
+
+    private void resetCachedCoord() {
+        if (cachedCoord == null)
+            return;
+        Set<NPC> npcs = CHUNK_LOADERS.get(cachedCoord);
+        npcs.remove(this);
+        if (npcs.size() == 0) {
+            cachedCoord.setForceLoaded(false);
+        }
+        cachedCoord = null;
     }
 
     @Override
@@ -437,82 +455,6 @@ public class CitizensNPC extends AbstractNPC {
     }
 
     @Override
-    public void speak(SpeechContext context) {
-        NPCSpeechEvent event = new NPCSpeechEvent(this, context);
-        Bukkit.getPluginManager().callEvent(event);
-        if (event.isCancelled())
-            return;
-
-        // chat to the world with CHAT_FORMAT and CHAT_RANGE settings
-        if (!context.hasRecipients()) {
-            String text = Setting.CHAT_FORMAT.asString().replace("<text>", context.getMessage());
-            talkToBystanders(this, text, context);
-            return;
-        } else if (context.size() <= 1) { // Assumed recipients at this point
-            String text = Setting.CHAT_FORMAT_TO_TARGET.asString().replace("<text>", context.getMessage());
-            String targetName = "";
-            // For each recipient
-            for (Talkable talkable : context) {
-                talkable.talkTo(context, text);
-                targetName = talkable.getName();
-            }
-            // Check if bystanders hear targeted chat
-            if (!Setting.CHAT_BYSTANDERS_HEAR_TARGETED_CHAT.asBoolean())
-                return;
-            // Format message with config setting and send to bystanders
-            String bystanderText = Setting.CHAT_FORMAT_TO_BYSTANDERS.asString().replace("<target>", targetName)
-                    .replace("<text>", context.getMessage());
-            talkToBystanders(this, bystanderText, context);
-            return;
-        } else { // Multiple recipients
-            String text = Setting.CHAT_FORMAT_TO_TARGET.asString().replace("<text>", context.getMessage());
-            List<String> targetNames = new ArrayList<>();
-            // Talk to each recipient
-            for (Talkable talkable : context) {
-                talkable.talkTo(context, text);
-                targetNames.add(talkable.getName());
-            }
-            if (!Setting.CHAT_BYSTANDERS_HEAR_TARGETED_CHAT.asBoolean())
-                return;
-            String targets = "";
-            int max = Setting.CHAT_MAX_NUMBER_OF_TARGETS.asInt();
-            String[] format = Setting.CHAT_MULTIPLE_TARGETS_FORMAT.asString().split("\\|");
-            if (format.length != 4) {
-                Messaging.severe("npc.chat.options.multiple-targets-format invalid!");
-            }
-            if (max == 1) {
-                targets = format[0].replace("<target>", targetNames.get(0)) + format[3];
-            } else if (max == 2 || targetNames.size() == 2) {
-                if (targetNames.size() == 2) {
-                    targets = format[0].replace("<target>", targetNames.get(0))
-                            + format[2].replace("<target>", targetNames.get(1));
-                } else {
-                    targets = format[0].replace("<target>", targetNames.get(0))
-                            + format[1].replace("<target>", targetNames.get(1)) + format[3];
-                }
-            } else if (max >= 3) {
-                targets = format[0].replace("<target>", targetNames.get(0));
-
-                int x = 1;
-                for (x = 1; x < max - 1; x++) {
-                    if (targetNames.size() - 1 == x) {
-                        break;
-                    }
-                    targets = targets + format[1].replace("<npc>", targetNames.get(x));
-                }
-                if (targetNames.size() == max) {
-                    targets = targets + format[2].replace("<npc>", targetNames.get(x));
-                } else {
-                    targets = targets + format[3];
-                }
-            }
-            String bystanderText = Setting.CHAT_FORMAT_WITH_TARGETS_TO_BYSTANDERS.asString()
-                    .replace("<targets>", targets).replace("<text>", context.getMessage());
-            talkToBystanders(this, bystanderText, context);
-        }
-    }
-
-    @Override
     public void teleport(Location location, TeleportCause reason) {
         if (!isSpawned())
             return;
@@ -548,9 +490,10 @@ public class CitizensNPC extends AbstractNPC {
     public void update() {
         try {
             super.update();
-            if (!isSpawned())
+            if (!isSpawned()) {
+                resetCachedCoord();
                 return;
-
+            }
             Location loc = getEntity().getLocation();
             if (data().has(NPC.Metadata.ACTIVATION_RANGE)) {
                 int range = data().get(NPC.Metadata.ACTIVATION_RANGE);
@@ -587,6 +530,15 @@ public class CitizensNPC extends AbstractNPC {
             }
             boolean isLiving = getEntity() instanceof LivingEntity;
             if (isUpdating(NPCUpdate.PACKET)) {
+                if (data().get(NPC.Metadata.KEEP_CHUNK_LOADED, Setting.KEEP_CHUNKS_LOADED.asBoolean())) {
+                    ChunkCoord currentCoord = new ChunkCoord(loc);
+                    if (!currentCoord.equals(cachedCoord)) {
+                        resetCachedCoord();
+                        currentCoord.setForceLoaded(true);
+                        CHUNK_LOADERS.put(currentCoord, this);
+                        cachedCoord = currentCoord;
+                    }
+                }
                 if (isLiving) {
                     updateScoreboard();
                 }
@@ -683,29 +635,7 @@ public class CitizensNPC extends AbstractNPC {
         }
     }
 
-    private static void talkToBystanders(NPC npc, String text, SpeechContext context) {
-        // Get list of nearby entities
-        List<Entity> bystanderEntities = npc.getEntity().getNearbyEntities(Setting.CHAT_RANGE.asDouble(),
-                Setting.CHAT_RANGE.asDouble(), Setting.CHAT_RANGE.asDouble());
-        for (Entity bystander : bystanderEntities) {
-            boolean shouldTalk = true;
-            if (!Setting.TALK_CLOSE_TO_NPCS.asBoolean() && CitizensAPI.getNPCRegistry().isNPC(bystander)) {
-                shouldTalk = false;
-            }
-            if (context.hasRecipients()) {
-                for (Talkable target : context) {
-                    if (target.getEntity().equals(bystander)) {
-                        shouldTalk = false;
-                        break;
-                    }
-                }
-            }
-            if (shouldTalk) {
-                new TalkableEntity(bystander).talkNear(context, text);
-            }
-        }
-    }
-
+    private static final SetMultimap<ChunkCoord, NPC> CHUNK_LOADERS = HashMultimap.create();
     private static boolean SUPPORT_ATTRIBUTES = false;
     private static boolean SUPPORT_GLOWING = false;
     private static boolean SUPPORT_PICKUP_ITEMS = false;

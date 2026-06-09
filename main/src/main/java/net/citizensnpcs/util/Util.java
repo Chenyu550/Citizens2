@@ -11,9 +11,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.Keyed;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -169,6 +171,13 @@ public class Util {
             center.setY(center.getY() + (bb.maxY - bb.minY));
         }
         return center;
+    }
+
+    public static Scoreboard getDummyScoreboard() {
+        if (DUMMY_SCOREBOARD == null) {
+            DUMMY_SCOREBOARD = Bukkit.getScoreboardManager().getNewScoreboard();
+        }
+        return DUMMY_SCOREBOARD;
     }
 
     public static Entity getEntity(UUID uuid) {
@@ -361,6 +370,18 @@ public class Util {
         return list;
     }
 
+    public static Color parseColor(String string) {
+        if (!string.contains(","))
+            return Color.fromRGB(Integer.decode(string));
+        List<Integer> list = Splitter.on(',').splitToStream(string).map(Integer::parseInt).collect(Collectors.toList());
+        if (list.size() == 3) {
+            return Color.fromRGB(list.get(0), list.get(1), list.get(2));
+        } else if (list.size() == 4) {
+            return Color.fromARGB(list.get(3), list.get(0), list.get(1), list.get(2));
+        }
+        throw new NumberFormatException();
+    }
+
     public static String possiblyConvertToBedrockName(String name) {
         return name.startsWith(BEDROCK_NAME_PREFIX) ? name : BEDROCK_NAME_PREFIX + name;
     }
@@ -451,6 +472,7 @@ public class Util {
     }
 
     private static String BEDROCK_NAME_PREFIX = ".";
+    private static Scoreboard DUMMY_SCOREBOARD;
     private static final Random RANDOM = new XORShiftRNG();
     private static boolean SUPPORTS_BUKKIT_GETENTITY = true;
     private static boolean SUPPORTS_HAS_EQUIPPABLE = false;

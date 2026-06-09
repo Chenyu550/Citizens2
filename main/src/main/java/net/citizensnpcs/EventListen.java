@@ -1,7 +1,7 @@
 package net.citizensnpcs;
 
-import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -9,9 +9,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
-import org.bukkit.entity.Ageable;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.FishHook;
@@ -49,7 +46,6 @@ import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
@@ -82,6 +78,10 @@ import net.citizensnpcs.Settings.Setting;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.ai.event.NavigationBeginEvent;
 import net.citizensnpcs.api.ai.event.NavigationCompleteEvent;
+import net.citizensnpcs.api.ai.speech.SpeechContext;
+import net.citizensnpcs.api.ai.speech.Talkable;
+import net.citizensnpcs.api.ai.speech.TalkableEntity;
+import net.citizensnpcs.api.ai.speech.event.NPCSpeechEvent;
 import net.citizensnpcs.api.event.CitizensPreReloadEvent;
 import net.citizensnpcs.api.event.CommandSenderCreateNPCEvent;
 import net.citizensnpcs.api.event.DespawnReason;
@@ -515,10 +515,7 @@ public class EventListen implements Listener {
                 || event.getReason() == DespawnReason.RELOAD) {
             Messaging.idebug(() -> Joiner.on(' ').join("Preventing further respawns of", event.getNPC(),
                     "due to DespawnReason." + event.getReason()));
-            List<ChunkCoord> keys = Lists.newArrayList(toRespawn.keySet());
-            for (ChunkCoord key : keys) {
-                toRespawn.remove(key, event.getNPC());
-            }
+            toRespawn.values().remove(event.getNPC());
         } else {
             Messaging.idebug(() -> Joiner.on(' ').join("Removing", event.getNPC(),
                     "from skin tracker due to DespawnReason." + event.getReason().name()));
@@ -574,7 +571,7 @@ public class EventListen implements Listener {
         if (!sendTabRemove || !event.getNPC().shouldRemoveFromTabList()) {
             NMS.sendRotationPacket(tracker, ImmutableList.of(event.getPlayer()), null, null, NMS.getHeadYaw(tracker));
             if (resetYaw) {
-                CitizensAPI.getScheduler().checkedRunEntityTask(tracker,
+                CitizensAPI.getScheduler().runEntityTask(tracker,
                         () -> PlayerAnimation.ARM_SWING.play((Player) tracker, event.getPlayer()));
             }
             return;
@@ -593,10 +590,7 @@ public class EventListen implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onNPCRemove(NPCRemoveEvent event) {
-        List<ChunkCoord> keys = Lists.newArrayList(toRespawn.keySet());
-        for (ChunkCoord key : keys) {
-            toRespawn.remove(key, event.getNPC());
-        }
+        toRespawn.values().remove(event.getNPC());
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -626,9 +620,89 @@ public class EventListen implements Listener {
         skinUpdateTracker.onNPCSpawn(event.getNPC());
         Messaging.idebug(() -> Joiner.on(' ').join("Removing respawns of", event.getNPC(),
                 "due to SpawnReason." + event.getReason()));
-        List<ChunkCoord> keys = Lists.newArrayList(toRespawn.keySet());
-        for (ChunkCoord key : keys) {
-            toRespawn.remove(key, event.getNPC());
+        toRespawn.values().remove(event.getNPC());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onNPCSpeak(NPCSpeechEvent event) {
+        SpeechContext context = event.getContext();
+        if (context.getTalker() == null)
+            return;
+        NPC npc = plugin.getNPCRegistry().getNPC(context.getTalker().getEntity());
+        if (npc == null)
+            return;
+
+        // chat to the world with CHAT_FORMAT and CHAT_RANGE settings
+        if (!context.hasRecipients()) {
+            String text = Setting.CHAT_FORMAT.asString().replace("<text>", context.getMessage());
+            talkToBystanders(npc, text, context);
+            return;
+        }
+
+        // Assumed recipients at this point
+        else if (context.size() <= 1) {
+            String text = Setting.CHAT_FORMAT_TO_TARGET.asString().replace("<text>", context.getMessage());
+            String targetName = "";
+            // For each recipient
+            for (Talkable talkable : context) {
+                talkable.talkTo(context, text);
+                targetName = talkable.getName();
+            }
+            // Check if bystanders hear targeted chat
+            if (!Setting.CHAT_BYSTANDERS_HEAR_TARGETED_CHAT.asBoolean())
+                return;
+            // Format message with config setting and send to bystanders
+            String bystanderText = Setting.CHAT_FORMAT_TO_BYSTANDERS.asString().replace("<target>", targetName)
+                    .replace("<text>", context.getMessage());
+            talkToBystanders(npc, bystanderText, context);
+            return;
+        }
+
+        else { // Multiple recipients
+            String text = Setting.CHAT_FORMAT_TO_TARGET.asString().replace("<text>", context.getMessage());
+            List<String> targetNames = new ArrayList<>();
+            // Talk to each recipient
+            for (Talkable talkable : context) {
+                talkable.talkTo(context, text);
+                targetNames.add(talkable.getName());
+            }
+            if (!Setting.CHAT_BYSTANDERS_HEAR_TARGETED_CHAT.asBoolean())
+                return;
+            String targets = "";
+            int max = Setting.CHAT_MAX_NUMBER_OF_TARGETS.asInt();
+            String[] format = Setting.CHAT_MULTIPLE_TARGETS_FORMAT.asString().split("\\|");
+            if (format.length != 4) {
+                Messaging.severe("npc.chat.options.multiple-targets-format invalid!");
+            }
+            if (max == 1) {
+                targets = format[0].replace("<target>", targetNames.get(0)) + format[3];
+            } else if (max == 2 || targetNames.size() == 2) {
+                if (targetNames.size() == 2) {
+                    targets = format[0].replace("<target>", targetNames.get(0))
+                            + format[2].replace("<target>", targetNames.get(1));
+                } else {
+                    targets = format[0].replace("<target>", targetNames.get(0))
+                            + format[1].replace("<target>", targetNames.get(1)) + format[3];
+                }
+            } else if (max >= 3) {
+                targets = format[0].replace("<target>", targetNames.get(0));
+
+                int x = 1;
+                for (x = 1; x < max - 1; x++) {
+                    if (targetNames.size() - 1 == x) {
+                        break;
+                    }
+                    targets = targets + format[1].replace("<npc>", targetNames.get(x));
+                }
+                if (targetNames.size() == max) {
+                    targets = targets + format[2].replace("<npc>", targetNames.get(x));
+                } else {
+                    targets = targets + format[3];
+                }
+            }
+            String bystanderText = Setting.CHAT_FORMAT_WITH_TARGETS_TO_BYSTANDERS.asString()
+                    .replace("<targets>", targets).replace("<text>", context.getMessage());
+            talkToBystanders(npc, bystanderText, context);
         }
     }
 
@@ -671,24 +745,6 @@ public class EventListen implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        if (GET_TARGET_ENTITY == null)
-            return;
-        AttributeInstance playerInteractionRange = event.getPlayer().getAttribute(Attribute.ENTITY_INTERACTION_RANGE);
-        Entity target = null;
-        try {
-            target = (Entity) GET_TARGET_ENTITY.invoke(event.getPlayer(),
-                    playerInteractionRange == null ? 3 : (int) Math.ceil(playerInteractionRange.getValue()));
-        } catch (Throwable e) {
-            e.printStackTrace();
-        }
-        NPC npc = plugin.getNPCRegistry().getNPC(target);
-        if (npc != null && npc.hasTrait(CommandTrait.class)) {
-            event.setUseItemInHand(Event.Result.DENY);
-        }
-    }
-
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
         NPC npc = plugin.getNPCRegistry().getNPC(event.getRightClicked());
@@ -702,11 +758,7 @@ public class EventListen implements Listener {
         Player player = event.getPlayer();
         NPCRightClickEvent rightClickEvent = new NPCRightClickEvent(npc, player);
         if (event.getPlayer().getItemInHand().getType() == Material.NAME_TAG) {
-            rightClickEvent.setDelayedCancellation(npc.isProtected());
-        }
-        if (npc.getEntity() instanceof Ageable
-                && event.getPlayer().getItemInHand().getType().name().equalsIgnoreCase("golden_dandelion")) {
-            rightClickEvent.setDelayedCancellation(npc.isProtected());
+            rightClickEvent.setCancelled(npc.isProtected());
         }
         Bukkit.getPluginManager().callEvent(rightClickEvent);
         if (rightClickEvent.isCancelled()) {
@@ -720,6 +772,16 @@ public class EventListen implements Listener {
         if (rightClickEvent.isDelayedCancellation()) {
             event.setCancelled(true);
         }
+        if (event.isCancelled()) {
+            if (SUPPORT_STOP_USE_ITEM) {
+                try {
+                    PlayerAnimation.STOP_USE_ITEM.play(player);
+                    CitizensAPI.getScheduler().runEntityTask(player, () -> PlayerAnimation.STOP_USE_ITEM.play(player));
+                } catch (UnsupportedOperationException e) {
+                    SUPPORT_STOP_USE_ITEM = false;
+                }
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -727,7 +789,6 @@ public class EventListen implements Listener {
         skinUpdateTracker.updatePlayer(event.getPlayer(), Setting.INITIAL_PLAYER_JOIN_SKIN_PACKET_DELAY.asTicks(),
                 true);
         plugin.getLocationLookup().onJoin(event);
-        plugin.getScoreboardManager().addPlayer(event.getPlayer());
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -760,7 +821,6 @@ public class EventListen implements Listener {
         }
         skinUpdateTracker.removePlayer(event.getPlayer().getUniqueId());
         plugin.getLocationLookup().onQuit(event);
-        plugin.getScoreboardManager().removePlayer(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -870,7 +930,6 @@ public class EventListen implements Listener {
         NPC npc = plugin.getNPCRegistry().getNPC(event.getVehicle());
         NPC rider = plugin.getNPCRegistry().getNPC(event.getEntered());
         if (npc == null) {
-            // block NPCs being put into vehicles
             if (rider != null && rider.isProtected() && (event.getVehicle().getType().name().contains("BOAT")
                     || event.getVehicle() instanceof Minecart)) {
                 event.setCancelled(true);
@@ -893,12 +952,14 @@ public class EventListen implements Listener {
 
             boolean despawned;
             if (SpigotUtil.isFoliaServer()) {
-                CitizensAPI.getScheduler().checkedRunEntityTask(npc.getEntity(),
-                        () -> npc.despawn(DespawnReason.WORLD_UNLOAD));
+                CitizensAPI.getScheduler().runEntityTask(npc.getEntity(), () -> {
+                    npc.despawn(DespawnReason.WORLD_UNLOAD);
+                });
                 despawned = true; // Assume despawned on Folia servers.
             } else {
                 despawned = npc.despawn(DespawnReason.WORLD_UNLOAD);
             }
+
             if (!despawned) {
                 for (ChunkCoord coord : Lists.newArrayList(toRespawn.keySet())) {
                     if (event.getWorld().getUID().equals(coord.worldUUID)) {
@@ -1093,6 +1154,28 @@ public class EventListen implements Listener {
         }
     }
 
-    private static final MethodHandle GET_TARGET_ENTITY = NMS.getMethodHandle(LivingEntity.class, "getTargetEntity",
-            false, int.class);
+    private static void talkToBystanders(NPC npc, String text, SpeechContext context) {
+        // Get list of nearby entities
+        List<Entity> bystanderEntities = npc.getEntity().getNearbyEntities(Setting.CHAT_RANGE.asDouble(),
+                Setting.CHAT_RANGE.asDouble(), Setting.CHAT_RANGE.asDouble());
+        for (Entity bystander : bystanderEntities) {
+            boolean shouldTalk = true;
+            if (!Setting.TALK_CLOSE_TO_NPCS.asBoolean() && CitizensAPI.getNPCRegistry().isNPC(bystander)) {
+                shouldTalk = false;
+            }
+            if (context.hasRecipients()) {
+                for (Talkable target : context) {
+                    if (target.getEntity().equals(bystander)) {
+                        shouldTalk = false;
+                        break;
+                    }
+                }
+            }
+            if (shouldTalk) {
+                new TalkableEntity(bystander).talkNear(context, text);
+            }
+        }
+    }
+
+    private static boolean SUPPORT_STOP_USE_ITEM = true;
 }

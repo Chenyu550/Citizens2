@@ -52,6 +52,7 @@ public class VillagerController extends MobEntityController {
 
     public static class EntityVillagerNPC extends Villager implements NPCHolder {
         private boolean blockingATrade;
+
         private final CitizensNPC npc;
 
         public EntityVillagerNPC(EntityType<? extends Villager> types, Level level) {
@@ -220,13 +221,6 @@ public class VillagerController extends MobEntityController {
             super.push(entity);
             if (npc != null) {
                 Util.callCollisionEvent(npc, entity.getBukkitEntity());
-            }
-        }
-
-        @Override
-        public void releaseAllPois() {
-            if (npc.useMinecraftAI()) {
-                super.releaseAllPois();
             }
         }
 

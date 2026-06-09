@@ -478,7 +478,6 @@ public class HologramTrait extends Trait {
             if (!rendered) {
                 cloud.setRadius(0);
                 cloud.setParticle(Particle.BLOCK_MARKER, Bukkit.createBlockData(Material.AIR));
-                rendered = true;
             }
             SpigotUtil.teleportAsync(hologram.getEntity(),
                     npc.getEntity().getLocation().clone().add(offset.x,
@@ -875,7 +874,7 @@ public class HologramTrait extends Trait {
 
         @Override
         public String getPerPlayerText(NPC npc, Player viewer) {
-            return text == null ? null : Placeholders.replace(text, viewer, npc);
+            return Placeholders.replace(text, viewer, npc);
         }
 
         @Override
@@ -932,8 +931,6 @@ public class HologramTrait extends Trait {
 
         @Override
         public void updateText(NPC npc, String raw) {
-            if (text != null && text.equals(raw))
-                return;
             this.text = raw;
             if (hologram == null)
                 return;

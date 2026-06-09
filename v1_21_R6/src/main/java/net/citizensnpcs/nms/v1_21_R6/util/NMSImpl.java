@@ -2389,19 +2389,14 @@ public class NMSImpl implements NMSBridge {
         return null;
     }
 
-    public static SoundEvent getSoundEffect(NPC npc, SoundEvent defaultSound, NPC.Metadata meta) {
+    public static SoundEvent getSoundEffect(NPC npc, SoundEvent snd, NPC.Metadata meta) {
         if (npc == null)
-            return defaultSound;
+            return snd;
         String data = npc.data().get(meta);
         if (data == null)
-            return defaultSound;
-        ResourceLocation ident = ResourceLocation.tryParse(data);
-        if (ident == null)
-            return defaultSound;
-        Reference<SoundEvent> ref = BuiltInRegistries.SOUND_EVENT.get(ident).orElse(null);
-        if (ref != null)
-            return ref.value();
-        return data.contains(":") ? SoundEvent.createVariableRangeEvent(ident) : defaultSound;
+            return snd;
+        Reference<SoundEvent> ref = BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.tryParse(data)).orElse(null);
+        return ref == null ? snd : ref.value();
     }
 
     private static TrackedEntity getTrackedEntityFolia(Entity entity) {
@@ -2763,6 +2758,19 @@ public class NMSImpl implements NMSBridge {
         handle.setDeltaMovement(transition.deltaMovement());
         handle.portalCooldown = entity.portalCooldown;
         return handle;
+    }
+
+    public static void updateAI(LivingEntity entity) {
+        if (entity instanceof Mob) {
+            Mob handle = (Mob) entity;
+            handle.getSensing().tick();
+            handle.getNavigation().tick();
+            handle.getMoveControl().tick();
+            handle.getLookControl().tick();
+            handle.getJumpControl().tick();
+        } else if (entity instanceof MobAI) {
+            ((MobAI) entity).tickAI();
+        }
     }
 
     public static void updateMinecraftAIState(NPC npc, Mob entity) {

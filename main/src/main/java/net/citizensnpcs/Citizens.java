@@ -79,9 +79,6 @@ import net.citizensnpcs.npc.ai.tree.CitizensBehaviorRegistry;
 import net.citizensnpcs.npc.ai.tree.MolangEngine;
 import net.citizensnpcs.npc.skin.Skin;
 import net.citizensnpcs.npc.skin.profile.ProfileFetcher;
-import net.citizensnpcs.trait.scoreboard.BukkitScoreboardManager;
-import net.citizensnpcs.trait.scoreboard.CitizensScoreboardManager;
-import net.citizensnpcs.trait.scoreboard.MegavexScoreboardManager;
 import net.citizensnpcs.trait.shop.StoredShops;
 import net.citizensnpcs.util.Messages;
 import net.citizensnpcs.util.NMS;
@@ -154,12 +151,12 @@ public class Citizens extends JavaPlugin implements CitizensPlugin {
     private SchedulerTask playerUpdateTask;
     private boolean saveOnDisable = true;
     private NPCDataStore saves;
-    private CitizensScoreboardManager scoreboardManager;
     private NPCSelector selector;
     private StoredShops shops;
     private final Map<String, NPCRegistry> storedRegistries = new HashMap<>();
     private TemplateRegistry templateRegistry;
     private NPCRegistry temporaryRegistry;
+
     private CitizensTraitFactory traitFactory;
 
     @Override
@@ -299,10 +296,6 @@ public class Citizens extends JavaPlugin implements CitizensPlugin {
         return packetEventsHook;
     }
 
-    public CitizensScoreboardManager getScoreboardManager() {
-        return scoreboardManager;
-    }
-
     public StoredShops getShops() {
         return shops;
     }
@@ -332,13 +325,13 @@ public class Citizens extends JavaPlugin implements CitizensPlugin {
         LibraryManager lib = new BukkitLibraryManager(this);
         lib.addMavenCentral();
         lib.setLogLevel(LogLevel.INFO);
-
         // Unfortunately, transitive dependency management is not supported in this library.
+
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-text-minimessage")
-                .version("4.26.1").relocate("net{}kyori", "clib{}net{}kyori").build());
-        lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-api").version("4.26.1")
+                .version("4.25.0").relocate("net{}kyori", "clib{}net{}kyori").build());
+        lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-api").version("4.25.0")
                 .relocate("net{}kyori", "clib{}net{}kyori").build());
-        lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-key").version("4.26.1")
+        lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-key").version("4.25.0")
                 .relocate("net{}kyori", "clib{}net{}kyori").build());
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("examination-api").version("1.3.0")
                 .relocate("net{}kyori", "clib{}net{}kyori").build());
@@ -351,32 +344,26 @@ public class Citizens extends JavaPlugin implements CitizensPlugin {
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-text-serializer-bungeecord")
                 .version("4.4.1").relocate("net{}kyori", "clib{}net{}kyori").build());
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-text-serializer-legacy")
-                .version("4.26.1").relocate("net{}kyori", "clib{}net{}kyori").build());
-        lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-nbt").version("4.26.1")
+                .version("4.25.0").relocate("net{}kyori", "clib{}net{}kyori").build());
+        lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-nbt").version("4.25.0")
                 .relocate("net{}kyori", "clib{}net{}kyori").build());
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-text-serializer-gson")
-                .version("4.26.1").relocate("net{}kyori", "clib{}net{}kyori").build());
+                .version("4.25.0").relocate("net{}kyori", "clib{}net{}kyori").build());
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-text-serializer-json")
-                .version("4.26.1").relocate("net{}kyori", "clib{}net{}kyori").build());
+                .version("4.25.0").relocate("net{}kyori", "clib{}net{}kyori").build());
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("option").version("1.1.0")
                 .relocate("net{}kyori", "clib{}net{}kyori").build());
         lib.loadLibrary(Library.builder().groupId("org{}jspecify").artifactId("jspecify").version("1.0.0").build());
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-text-serializer-commons")
-                .version("4.26.1").relocate("net{}kyori", "clib{}net{}kyori").build());
+                .version("4.25.0").relocate("net{}kyori", "clib{}net{}kyori").build());
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-text-serializer-gson-legacy-impl")
-                .version("4.26.1").relocate("net{}kyori", "clib{}net{}kyori").build());
+                .version("4.25.0").relocate("net{}kyori", "clib{}net{}kyori").build());
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-text-serializer-json-legacy-impl")
-                .version("4.26.1").relocate("net{}kyori", "clib{}net{}kyori").build());
+                .version("4.25.0").relocate("net{}kyori", "clib{}net{}kyori").build());
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-platform-facet").version("4.4.1")
                 .relocate("net{}kyori", "clib{}net{}kyori").build());
         lib.loadLibrary(Library.builder().groupId("net{}kyori").artifactId("adventure-platform-viaversion")
                 .version("4.4.1").relocate("net{}kyori", "clib{}net{}kyori").build());
-
-        lib.loadLibrary(Library.builder().groupId("net{}megavex").artifactId("scoreboard-library-api").version("2.7.4")
-                .relocate("net{}megavex{}scoreboardlibrary", "clib{}net{}megavex{}scoreboardlibrary").build());
-        lib.loadLibrary(Library.builder().groupId("net{}megavex").artifactId("scoreboard-library-implementation")
-                .version("2.7.4").relocate("net{}megavex{}scoreboardlibrary", "clib{}net{}megavex{}scoreboardlibrary")
-                .build());
     }
 
     @Override
@@ -418,8 +405,6 @@ public class Citizens extends JavaPlugin implements CitizensPlugin {
         if (packetEventsEnabled) {
             PacketEvents.getAPI().terminate();
         }
-        scoreboardManager.close();
-        scoreboardManager = null;
     }
 
     @Override
@@ -455,7 +440,6 @@ public class Citizens extends JavaPlugin implements CitizensPlugin {
             return;
         }
         traitFactory = new CitizensTraitFactory(this);
-        Bukkit.getPluginManager().registerEvents(traitFactory, this);
         npcRegistry = new CitizensNPCRegistry(saves, this, "citizens");
         temporaryRegistry = new CitizensNPCRegistry(new MemoryNPCDataStore(), this, "citizens-temporary");
         locationLookup = new LocationLookup(npcRegistry);
@@ -490,13 +474,6 @@ public class Citizens extends JavaPlugin implements CitizensPlugin {
         if (CitizensAPI.getScheduler().runTaskLater(new CitizensLoadTask(), 1) == null) {
             Messaging.severeTr(Messages.LOAD_TASK_NOT_SCHEDULED);
             Bukkit.getPluginManager().disablePlugin(this);
-        }
-        // TODO: reimplement megavex implementation with packets to simplify this
-        try {
-            Class.forName("net.kyori.adventure.Adventure");
-            scoreboardManager = new MegavexScoreboardManager(this);
-        } catch (ClassNotFoundException e) {
-            scoreboardManager = new BukkitScoreboardManager(this);
         }
     }
 
